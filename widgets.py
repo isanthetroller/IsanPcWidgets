@@ -1019,10 +1019,27 @@ class SpotifyWidget(BaseWidget):
         try:
             from winrt.windows.media.control import (
                 GlobalSystemMediaTransportControlsSessionManager as MediaManager,
+                GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
             )
             async def _get():
                 mgr = await MediaManager.request_async()
-                return mgr.get_current_session()
+                session = mgr.get_current_session()
+                if session is not None:
+                    return session
+                # Fallback: iterate all sessions, prefer one that is playing
+                sessions = mgr.get_sessions()
+                best = None
+                for i in range(sessions.size):
+                    s = sessions.get_at(i)
+                    if best is None:
+                        best = s
+                    try:
+                        pb = s.get_playback_info()
+                        if pb and pb.playback_status == PlaybackStatus.PLAYING:
+                            return s
+                    except Exception:
+                        pass
+                return best
             return _run_async(_get())
         except Exception:
             return None
@@ -1046,10 +1063,10 @@ class SpotifyWidget(BaseWidget):
             title = info.title or "Unknown"
             artist = info.artist or ""
 
+            self.title_label.setText(title)
+            self.artist_label.setText(artist)
             if title != self._last_title:
                 self._last_title = title
-                self.title_label.setText(title)
-                self.artist_label.setText(artist)
                 self._load_thumbnail(info)
 
             # Update play/pause icon based on playback status
@@ -1084,8 +1101,7 @@ class SpotifyWidget(BaseWidget):
                 from winrt.windows.storage.streams import DataReader
                 reader = DataReader(stream)
                 await reader.load_async(size)
-                buf = reader.read_buffer(size)
-                return bytes(buf)
+                return bytes(reader.read_bytes(size))
 
             data = _run_async(_read_thumb())
             if data:
