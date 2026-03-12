@@ -1,6 +1,7 @@
 import random
 import time
 import asyncio
+import threading
 import psutil
 from datetime import datetime, date
 from PySide6.QtWidgets import (
@@ -8,7 +9,11 @@ from PySide6.QtWidgets import (
     QProgressBar, QGridLayout, QPushButton, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, QTime, QDate
-from PySide6.QtGui import QGuiApplication, QPixmap, QImage
+from PySide6.QtGui import (
+    QGuiApplication, QPixmap, QImage, QIcon, QPainter, QColor, QPen,
+    QPolygon,
+)
+from PySide6.QtCore import QPoint
 from themes import build_stylesheet
 
 
@@ -883,17 +888,57 @@ class DayProgressWidget(BaseWidget):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # SPOTIFY / NOW PLAYING — media session from browser or desktop
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Persistent event loop running on a background thread for WinRT calls
+_async_loop = asyncio.new_event_loop()
+_async_thread = threading.Thread(target=_async_loop.run_forever, daemon=True)
+_async_thread.start()
+
+
 def _run_async(coro):
-    """Run an async coroutine from sync code safely."""
+    """Schedule a coroutine on the background loop and wait for the result."""
+    future = asyncio.run_coroutine_threadsafe(coro, _async_loop)
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop and loop.is_running():
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            return pool.submit(asyncio.run, coro).result(timeout=3)
-    return asyncio.run(coro)
+        return future.result(timeout=4)
+    except Exception:
+        return None
+
+
+def _make_media_icon(icon_type, color="#FFFFFF", size=28):
+    """Draw media control icons with QPainter. icon_type: prev|play|pause|next"""
+    px = QPixmap(size, size)
+    px.fill(Qt.transparent)
+    p = QPainter(px)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(color))
+    m = size // 5  # margin
+
+    if icon_type == "prev":
+        # bar + left-pointing triangle
+        p.fillRect(m, m, size // 8, size - 2 * m, QColor(color))
+        tri = QPolygon([QPoint(size - m, m), QPoint(size - m, size - m), QPoint(m + size // 6, size // 2)])
+        p.drawPolygon(tri)
+    elif icon_type == "next":
+        # right-pointing triangle + bar
+        tri = QPolygon([QPoint(m, m), QPoint(m, size - m), QPoint(size - m - size // 6, size // 2)])
+        p.drawPolygon(tri)
+        p.fillRect(size - m - size // 8, m, size // 8, size - 2 * m, QColor(color))
+    elif icon_type == "play":
+        # right-pointing triangle
+        tri = QPolygon([QPoint(m + 2, m), QPoint(m + 2, size - m), QPoint(size - m, size // 2)])
+        p.drawPolygon(tri)
+    elif icon_type == "pause":
+        # two vertical bars
+        bar_w = size // 5
+        gap = size // 8
+        x1 = size // 2 - gap - bar_w
+        x2 = size // 2 + gap
+        p.fillRect(x1, m, bar_w, size - 2 * m, QColor(color))
+        p.fillRect(x2, m, bar_w, size - 2 * m, QColor(color))
+
+    p.end()
+    return QIcon(px)
 
 
 class SpotifyWidget(BaseWidget):
@@ -927,17 +972,20 @@ class SpotifyWidget(BaseWidget):
         info_col.addStretch()
         top_row.addLayout(info_col)
 
-        # Control buttons
+        # Control buttons with painted icons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        self.prev_btn = QPushButton("⏮")
+        self.prev_btn = QPushButton()
         self.prev_btn.setObjectName("media_btn")
+        self.prev_btn.setIcon(_make_media_icon("prev"))
         self.prev_btn.clicked.connect(self._prev_track)
-        self.play_btn = QPushButton("⏯")
+        self.play_btn = QPushButton()
         self.play_btn.setObjectName("media_btn")
+        self.play_btn.setIcon(_make_media_icon("play"))
         self.play_btn.clicked.connect(self._play_pause)
-        self.next_btn = QPushButton("⏭")
+        self.next_btn = QPushButton()
         self.next_btn.setObjectName("media_btn")
+        self.next_btn.setIcon(_make_media_icon("next"))
         self.next_btn.clicked.connect(self._next_track)
         btn_row.addStretch()
         btn_row.addWidget(self.prev_btn)
@@ -949,8 +997,8 @@ class SpotifyWidget(BaseWidget):
         self.content_layout.addWidget(_make_divider())
         self.content_layout.addLayout(btn_row)
 
-        self._session = None
         self._last_title = None
+        self._is_playing = False
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -961,7 +1009,7 @@ class SpotifyWidget(BaseWidget):
 
     def _default_art(self):
         """Show a music note placeholder when no art is available."""
-        self.art_label.setText("🎵")
+        self.art_label.setText("\U0001f3b5")
         self.art_label.setStyleSheet(
             "font-size: 36px; background: rgba(128,128,128,30); border-radius: 8px;"
         )
@@ -981,19 +1029,20 @@ class SpotifyWidget(BaseWidget):
 
     def _update(self):
         session = self._get_session()
-        self._session = session
         if not session:
             if self._last_title is not None:
                 self.title_label.setText("No media playing")
                 self.artist_label.setText("")
                 self._default_art()
                 self._last_title = None
+                self._is_playing = False
+                self.play_btn.setIcon(_make_media_icon("play"))
             return
 
         try:
-            async def _get_info():
-                return await session.try_get_media_properties_async()
-            info = _run_async(_get_info())
+            info = _run_async(session.try_get_media_properties_async())
+            if info is None:
+                return
             title = info.title or "Unknown"
             artist = info.artist or ""
 
@@ -1002,6 +1051,22 @@ class SpotifyWidget(BaseWidget):
                 self.title_label.setText(title)
                 self.artist_label.setText(artist)
                 self._load_thumbnail(info)
+
+            # Update play/pause icon based on playback status
+            try:
+                from winrt.windows.media.control import (
+                    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
+                )
+                pb_info = session.get_playback_info()
+                if pb_info:
+                    playing = pb_info.playback_status == PlaybackStatus.PLAYING
+                    if playing != self._is_playing:
+                        self._is_playing = playing
+                        self.play_btn.setIcon(
+                            _make_media_icon("pause" if playing else "play")
+                        )
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -1016,13 +1081,10 @@ class SpotifyWidget(BaseWidget):
             async def _read_thumb():
                 stream = await thumb.open_read_async()
                 size = stream.size
-                from winrt.windows.storage.streams import (
-                    DataReader,
-                )
+                from winrt.windows.storage.streams import DataReader
                 reader = DataReader(stream)
                 await reader.load_async(size)
                 buf = reader.read_buffer(size)
-                # Convert IBuffer to bytes
                 return bytes(buf)
 
             data = _run_async(_read_thumb())
@@ -1042,23 +1104,30 @@ class SpotifyWidget(BaseWidget):
         self._default_art()
 
     def _play_pause(self):
-        if self._session:
+        session = self._get_session()
+        if session:
             try:
-                _run_async(self._session.try_toggle_play_pause_async())
+                _run_async(session.try_toggle_play_pause_async())
+                self._is_playing = not self._is_playing
+                self.play_btn.setIcon(
+                    _make_media_icon("pause" if self._is_playing else "play")
+                )
             except Exception:
                 pass
 
     def _next_track(self):
-        if self._session:
+        session = self._get_session()
+        if session:
             try:
-                _run_async(self._session.try_skip_next_async())
+                _run_async(session.try_skip_next_async())
             except Exception:
                 pass
 
     def _prev_track(self):
-        if self._session:
+        session = self._get_session()
+        if session:
             try:
-                _run_async(self._session.try_skip_previous_async())
+                _run_async(session.try_skip_previous_async())
             except Exception:
                 pass
 
