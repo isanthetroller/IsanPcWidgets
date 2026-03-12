@@ -3,7 +3,12 @@ import os
 import sys
 import winreg
 
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+def _app_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_FILE = os.path.join(_app_dir(), "settings.json")
 APP_NAME = "DesktopWidgets"
 
 FONTS = [
