@@ -1057,7 +1057,9 @@ class SpotifyWidget(BaseWidget):
             return
 
         try:
-            info = _run_async(session.try_get_media_properties_async())
+            async def _get_info():
+                return await session.try_get_media_properties_async()
+            info = _run_async(_get_info())
             if info is None:
                 return
             title = info.title or "Unknown"
@@ -1098,10 +1100,10 @@ class SpotifyWidget(BaseWidget):
             async def _read_thumb():
                 stream = await thumb.open_read_async()
                 size = stream.size
-                from winrt.windows.storage.streams import DataReader
-                reader = DataReader(stream)
-                await reader.load_async(size)
-                return bytes(reader.read_bytes(size))
+                from winrt.windows.storage.streams import Buffer
+                buf = Buffer(size)
+                await stream.read_async(buf, size, 0)
+                return bytes(buf)
 
             data = _run_async(_read_thumb())
             if data:
@@ -1123,7 +1125,9 @@ class SpotifyWidget(BaseWidget):
         session = self._get_session()
         if session:
             try:
-                _run_async(session.try_toggle_play_pause_async())
+                async def _toggle():
+                    await session.try_toggle_play_pause_async()
+                _run_async(_toggle())
                 self._is_playing = not self._is_playing
                 self.play_btn.setIcon(
                     _make_media_icon("pause" if self._is_playing else "play")
@@ -1135,7 +1139,9 @@ class SpotifyWidget(BaseWidget):
         session = self._get_session()
         if session:
             try:
-                _run_async(session.try_skip_next_async())
+                async def _skip():
+                    await session.try_skip_next_async()
+                _run_async(_skip())
             except Exception:
                 pass
 
@@ -1143,7 +1149,9 @@ class SpotifyWidget(BaseWidget):
         session = self._get_session()
         if session:
             try:
-                _run_async(session.try_skip_previous_async())
+                async def _skip():
+                    await session.try_skip_previous_async()
+                _run_async(_skip())
             except Exception:
                 pass
 
