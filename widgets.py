@@ -1045,8 +1045,72 @@ class SpotifyWidget(BaseWidget):
             return None
 
     def _update(self):
-        session = self._get_session()
-        if not session:
+        """Fetch media info + thumbnail + playback status in one async call."""
+        try:
+            from winrt.windows.media.control import (
+                GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
+            )
+
+            async def _fetch_all():
+                session = None
+                try:
+                    from winrt.windows.media.control import (
+                        GlobalSystemMediaTransportControlsSessionManager as MM,
+                    )
+                    mgr = await MM.request_async()
+                    session = mgr.get_current_session()
+                    if session is None:
+                        sessions = mgr.get_sessions()
+                        for i in range(sessions.size):
+                            s = sessions.get_at(i)
+                            if session is None:
+                                session = s
+                            try:
+                                pb = s.get_playback_info()
+                                if pb and pb.playback_status == PlaybackStatus.PLAYING:
+                                    session = s
+                                    break
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+                if session is None:
+                    return None
+
+                info = await session.try_get_media_properties_async()
+                title = (info.title or "Unknown") if info else "Unknown"
+                artist = (info.artist or "") if info else ""
+
+                # Read thumbnail bytes inside the same async context
+                thumb_data = None
+                if info and info.thumbnail:
+                    try:
+                        stream = await info.thumbnail.open_read_async()
+                        size = stream.size
+                        from winrt.windows.storage.streams import Buffer
+                        buf = Buffer(size)
+                        await stream.read_async(buf, size, 0)
+                        thumb_data = bytes(buf)
+                    except Exception:
+                        pass
+
+                # Playback status
+                playing = False
+                try:
+                    pb = session.get_playback_info()
+                    if pb:
+                        playing = pb.playback_status == PlaybackStatus.PLAYING
+                except Exception:
+                    pass
+
+                return {"title": title, "artist": artist, "thumb": thumb_data, "playing": playing}
+
+            result = _run_async(_fetch_all())
+        except Exception:
+            result = None
+
+        if result is None:
             if self._last_title is not None:
                 self.title_label.setText("No media playing")
                 self.artist_label.setText("")
@@ -1056,58 +1120,17 @@ class SpotifyWidget(BaseWidget):
                 self.play_btn.setIcon(_make_media_icon("play"))
             return
 
-        try:
-            async def _get_info():
-                return await session.try_get_media_properties_async()
-            info = _run_async(_get_info())
-            if info is None:
-                return
-            title = info.title or "Unknown"
-            artist = info.artist or ""
+        title = result["title"]
+        artist = result["artist"]
+        self.title_label.setText(title)
+        self.artist_label.setText(artist)
 
-            self.title_label.setText(title)
-            self.artist_label.setText(artist)
-            if title != self._last_title:
-                self._last_title = title
-                self._load_thumbnail(info)
-
-            # Update play/pause icon based on playback status
-            try:
-                from winrt.windows.media.control import (
-                    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
-                )
-                pb_info = session.get_playback_info()
-                if pb_info:
-                    playing = pb_info.playback_status == PlaybackStatus.PLAYING
-                    if playing != self._is_playing:
-                        self._is_playing = playing
-                        self.play_btn.setIcon(
-                            _make_media_icon("pause" if playing else "play")
-                        )
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    def _load_thumbnail(self, info):
-        """Load album art from the media session thumbnail."""
-        try:
-            thumb = info.thumbnail
-            if thumb is None:
-                self._default_art()
-                return
-
-            async def _read_thumb():
-                stream = await thumb.open_read_async()
-                size = stream.size
-                from winrt.windows.storage.streams import Buffer
-                buf = Buffer(size)
-                await stream.read_async(buf, size, 0)
-                return bytes(buf)
-
-            data = _run_async(_read_thumb())
-            if data:
-                img = QImage.fromData(data)
+        # Always try to load thumbnail on song change
+        if title != self._last_title:
+            self._last_title = title
+            thumb_data = result["thumb"]
+            if thumb_data:
+                img = QImage.fromData(thumb_data)
                 if not img.isNull():
                     px = QPixmap.fromImage(img).scaled(
                         80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation
@@ -1116,44 +1139,69 @@ class SpotifyWidget(BaseWidget):
                     self.art_label.setStyleSheet(
                         "background: transparent; border-radius: 8px;"
                     )
-                    return
-        except Exception:
-            pass
-        self._default_art()
+                else:
+                    self._default_art()
+            else:
+                self._default_art()
+
+        playing = result["playing"]
+        if playing != self._is_playing:
+            self._is_playing = playing
+            self.play_btn.setIcon(
+                _make_media_icon("pause" if playing else "play")
+            )
+
+    def _load_thumbnail(self, info):
+        pass
 
     def _play_pause(self):
-        session = self._get_session()
-        if session:
-            try:
-                async def _toggle():
-                    await session.try_toggle_play_pause_async()
-                _run_async(_toggle())
-                self._is_playing = not self._is_playing
-                self.play_btn.setIcon(
-                    _make_media_icon("pause" if self._is_playing else "play")
+        try:
+            async def _action():
+                from winrt.windows.media.control import (
+                    GlobalSystemMediaTransportControlsSessionManager as MM,
                 )
-            except Exception:
-                pass
+                mgr = await MM.request_async()
+                session = mgr.get_current_session()
+                if session:
+                    await session.try_toggle_play_pause_async()
+            _run_async(_action())
+            self._is_playing = not self._is_playing
+            self.play_btn.setIcon(
+                _make_media_icon("pause" if self._is_playing else "play")
+            )
+        except Exception:
+            pass
 
     def _next_track(self):
-        session = self._get_session()
-        if session:
-            try:
-                async def _skip():
+        try:
+            async def _action():
+                from winrt.windows.media.control import (
+                    GlobalSystemMediaTransportControlsSessionManager as MM,
+                )
+                mgr = await MM.request_async()
+                session = mgr.get_current_session()
+                if session:
                     await session.try_skip_next_async()
-                _run_async(_skip())
-            except Exception:
-                pass
+            _run_async(_action())
+            # Force title refresh so next poll picks up new song
+            self._last_title = None
+        except Exception:
+            pass
 
     def _prev_track(self):
-        session = self._get_session()
-        if session:
-            try:
-                async def _skip():
+        try:
+            async def _action():
+                from winrt.windows.media.control import (
+                    GlobalSystemMediaTransportControlsSessionManager as MM,
+                )
+                mgr = await MM.request_async()
+                session = mgr.get_current_session()
+                if session:
                     await session.try_skip_previous_async()
-                _run_async(_skip())
-            except Exception:
-                pass
+            _run_async(_action())
+            self._last_title = None
+        except Exception:
+            pass
 
 
 # ──────────────────────────────────────────────────────────────────────
