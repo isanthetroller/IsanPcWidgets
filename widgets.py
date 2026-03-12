@@ -113,14 +113,16 @@ class BaseWidget(QWidget):
         pass
 
     def _set_adaptive_size(self, base_w, base_h):
-        """Set widget size accounting for scale and screen DPI."""
+        """Set widget size accounting for scale and screen DPI.
+        No max-width constraint so text is never clipped."""
         s = self._scale()
         dpi = _screen_factor()
         w = int(base_w * s * dpi)
         h = int(base_h * s * dpi)
         self.setMinimumSize(w, h)
-        self.setMaximumSize(int(w * 1.5), int(h * 1.8))
+        self.setMaximumSize(16777215, int(h * 2))  # no width cap
         self.resize(w, h)
+        self.adjustSize()
 
     def _restore_position(self):
         wc = self.config.get("widgets", {}).get(self.widget_id, {})
@@ -230,6 +232,9 @@ class DateTimeWidget(BaseWidget):
             if t["date_transform"] == "upper":
                 date_text = date_text.upper()
             self.date_label.setText(date_text)
+
+        # Let widget grow to fit content
+        self.adjustSize()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

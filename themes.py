@@ -216,20 +216,14 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         QLabel#day {{
             font-size: {s(38)}px;
             font-weight: bold;
-            letter-spacing: {sp(4)}px;
-            padding-right: {sp(4)}px;
             color: {t['fg']};
         }}
         QLabel#date {{
             font-size: {s(16)}px;
-            letter-spacing: {sp(2)}px;
-            padding-right: {sp(2)}px;
             color: {t['dim']};
         }}
         QLabel#time {{
             font-size: {s(18)}px;
-            letter-spacing: {sp(2)}px;
-            padding-right: {sp(2)}px;
             color: {t['accent']};
         }}
         QLabel#clock_big {{
