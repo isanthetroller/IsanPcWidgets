@@ -6,7 +6,7 @@ from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
 from PySide6.QtCore import Qt
 from themes import THEMES
 from config import FONTS
-from pickers import ThemePickerDialog, FontPickerDialog, TemplatePickerDialog, DATETIME_TEMPLATES
+from pickers import ThemePickerDialog, FontPickerDialog, TemplatePickerDialog, ColorPickerDialog, DATETIME_TEMPLATES
 
 
 def _create_icon():
@@ -136,6 +136,12 @@ class TrayManager:
         font_action = self.menu.addAction(f"🔤  Font: {current_font}")
         font_action.triggered.connect(self._open_font_picker)
 
+        # ── Custom color picker ──
+        has_custom = bool(self.config.get("custom_colors"))
+        color_label = "🎯  Custom Colors" + ("  ●" if has_custom else "")
+        color_action = self.menu.addAction(color_label)
+        color_action.triggered.connect(self._open_color_picker)
+
         # ── DateTime template picker ──
         current_tmpl = self.config.get("widgets", {}).get("datetime", {}).get("template", "classic")
         tmpl_name = DATETIME_TEMPLATES.get(current_tmpl, {}).get("name", current_tmpl)
@@ -228,6 +234,21 @@ class TrayManager:
 
     def _apply_font_from_picker(self, font_name):
         self.config["font"] = font_name
+        self.refresh_fn()
+        self.save_fn()
+        self._build_menu()
+
+    def _open_color_picker(self):
+        current = self.config.get("custom_colors") or {}
+        dlg = ColorPickerDialog(current)
+        dlg.colors_changed.connect(self._apply_custom_colors)
+        dlg.exec()
+
+    def _apply_custom_colors(self, colors):
+        if colors:
+            self.config["custom_colors"] = colors
+        else:
+            self.config.pop("custom_colors", None)
         self.refresh_fn()
         self.save_fn()
         self._build_menu()

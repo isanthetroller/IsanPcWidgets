@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QScrollArea, QWidget, QFrame, QLineEdit,
+    QSlider, QPushButton, QColorDialog,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -409,6 +410,104 @@ DATETIME_TEMPLATES = {
         "show_ampm": False,
         "layout": "compact",
     },
+    "typewriter": {
+        "name": "Typewriter",
+        "desc": "Monospaced look, underscores",
+        "day_fmt": "dddd",
+        "date_fmt": "dd_MM_yyyy",
+        "time_fmt": "HH:mm:ss",
+        "day_transform": "upper",
+        "date_transform": "none",
+        "time_prefix": "> ",
+        "time_suffix": "",
+        "show_seconds": True,
+        "show_ampm": False,
+        "layout": "vertical",
+    },
+    "headline": {
+        "name": "Headline",
+        "desc": "News-style bold date above time",
+        "day_fmt": "dddd",
+        "date_fmt": "MMMM d, yyyy",
+        "time_fmt": "h:mm",
+        "day_transform": "upper",
+        "date_transform": "upper",
+        "time_prefix": "",
+        "time_suffix": "",
+        "show_seconds": False,
+        "show_ampm": True,
+        "layout": "vertical",
+    },
+    "dots": {
+        "name": "Dots",
+        "desc": "Dotted separators, playful",
+        "day_fmt": "dddd",
+        "date_fmt": "d · MMM · yyyy",
+        "time_fmt": "HH:mm",
+        "day_transform": "upper",
+        "date_transform": "upper",
+        "time_prefix": "• ",
+        "time_suffix": " •",
+        "show_seconds": False,
+        "show_ampm": False,
+        "layout": "vertical",
+    },
+    "stacked": {
+        "name": "Stacked",
+        "desc": "Time huge, day and date small below",
+        "day_fmt": "dddd",
+        "date_fmt": "d MMMM yyyy",
+        "time_fmt": "HH:mm",
+        "day_transform": "upper",
+        "date_transform": "upper",
+        "time_prefix": "",
+        "time_suffix": "",
+        "show_seconds": False,
+        "show_ampm": False,
+        "layout": "time_top",
+    },
+    "slashes": {
+        "name": "Slashes",
+        "desc": "Date with slashes, seconds visible",
+        "day_fmt": "ddd",
+        "date_fmt": "MM/dd/yyyy",
+        "time_fmt": "HH:mm:ss",
+        "day_transform": "upper",
+        "date_transform": "none",
+        "time_prefix": "",
+        "time_suffix": "",
+        "show_seconds": True,
+        "show_ampm": False,
+        "layout": "time_top",
+    },
+    "poetic": {
+        "name": "Poetic",
+        "desc": "Soft title case, graceful",
+        "day_fmt": "dddd",
+        "date_fmt": "d MMMM, yyyy",
+        "time_fmt": "h:mm",
+        "day_transform": "title",
+        "date_transform": "none",
+        "time_prefix": "~ ",
+        "time_suffix": " ~",
+        "show_seconds": False,
+        "show_ampm": True,
+        "layout": "vertical",
+    },
+    "military": {
+        "name": "Military",
+        "desc": "24h Zulu time, terse format",
+        "day_fmt": "ddd",
+        "date_fmt": "dd MMM yyyy",
+        "time_fmt": "HH:mm",
+        "day_transform": "upper",
+        "date_transform": "upper",
+        "time_prefix": "",
+        "time_suffix": "H",
+        "show_seconds": False,
+        "show_ampm": False,
+        "layout": "time_top",
+    },
 }
 
 
@@ -559,4 +658,140 @@ class TemplatePickerDialog(QDialog):
 
     def _on_clicked(self, tmpl_id):
         self.template_selected.emit(tmpl_id)
+        self.accept()
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  CUSTOM COLOR PICKER
+# ══════════════════════════════════════════════════════════════════════
+
+class _ColorButton(QPushButton):
+    """Small colored square button that opens a QColorDialog."""
+    color_changed = Signal(str, str)  # key, hex_color
+
+    def __init__(self, key, label, current_hex, parent=None):
+        super().__init__(parent)
+        self.key = key
+        self._color = current_hex
+        self.setFixedSize(36, 36)
+        self.setCursor(Qt.PointingHandCursor)
+        self._update_style()
+        self.setToolTip(label)
+        self.clicked.connect(self._pick)
+
+    def _update_style(self):
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self._color};
+                border: 2px solid #555;
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid #fff;
+            }}
+        """)
+
+    def _pick(self):
+        c = QColorDialog.getColor(QColor(self._color), self.parent(), f"Pick {self.key}")
+        if c.isValid():
+            self._color = c.name()
+            self._update_style()
+            self.color_changed.emit(self.key, self._color)
+
+
+class ColorPickerDialog(QDialog):
+    colors_changed = Signal(dict)  # {"fg": "#xxx", "accent": "#xxx", ...}
+
+    def __init__(self, current_custom=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Custom Colors")
+        self.setMinimumSize(380, 320)
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setStyleSheet(DIALOG_STYLE)
+
+        self._colors = dict(current_custom) if current_custom else {}
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 16, 20, 16)
+        main_layout.setSpacing(12)
+
+        heading = QLabel("🎯  Custom Colors")
+        heading.setObjectName("heading")
+        main_layout.addWidget(heading)
+
+        subhead = QLabel("Override theme colors  ·  Click a swatch to change")
+        subhead.setObjectName("subhead")
+        main_layout.addWidget(subhead)
+
+        main_layout.addSpacing(4)
+
+        color_keys = [
+            ("fg", "Text Color", "#FFFFFF"),
+            ("accent", "Accent Color", "#A8F0D0"),
+            ("bg", "Background", "rgba(0,105,62,235)"),
+        ]
+
+        for key, label, default in color_keys:
+            row = QHBoxLayout()
+            lbl = QLabel(label)
+            lbl.setStyleSheet("color: #ccc; font-size: 13px; background: transparent;")
+            lbl.setFixedWidth(140)
+
+            current = self._colors.get(key, default)
+            btn = _ColorButton(key, label, current, self)
+            btn.color_changed.connect(self._on_color_changed)
+
+            hex_lbl = QLabel(current)
+            hex_lbl.setObjectName(f"hex_{key}")
+            hex_lbl.setStyleSheet("color: #888; font-size: 11px; font-family: 'Consolas'; background: transparent;")
+
+            row.addWidget(lbl)
+            row.addWidget(btn)
+            row.addSpacing(8)
+            row.addWidget(hex_lbl)
+            row.addStretch()
+            main_layout.addLayout(row)
+
+        main_layout.addSpacing(12)
+
+        btn_row = QHBoxLayout()
+        apply_btn = QPushButton("Apply")
+        apply_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #00693E; color: white; border: none;
+                border-radius: 6px; padding: 8px 24px; font-size: 13px;
+            }
+            QPushButton:hover { background-color: #008050; }
+        """)
+        apply_btn.clicked.connect(self._apply)
+
+        reset_btn = QPushButton("Reset to Theme")
+        reset_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #333; color: #ccc; border: 1px solid #555;
+                border-radius: 6px; padding: 8px 24px; font-size: 13px;
+            }
+            QPushButton:hover { background-color: #444; }
+        """)
+        reset_btn.clicked.connect(self._reset)
+
+        btn_row.addWidget(reset_btn)
+        btn_row.addWidget(apply_btn)
+        main_layout.addLayout(btn_row)
+
+        main_layout.addStretch()
+
+    def _on_color_changed(self, key, hex_color):
+        self._colors[key] = hex_color
+        lbl = self.findChild(QLabel, f"hex_{key}")
+        if lbl:
+            lbl.setText(hex_color)
+
+    def _apply(self):
+        self.colors_changed.emit(dict(self._colors))
+        self.accept()
+
+    def _reset(self):
+        self.colors_changed.emit({})
         self.accept()

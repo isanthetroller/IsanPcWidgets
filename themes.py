@@ -187,8 +187,10 @@ NOBG_OVERRIDE = {
 }
 
 
-def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False):
+def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_colors=None):
     t = THEMES.get(theme_name, THEMES["emerald"]).copy()
+    if custom_colors:
+        t.update(custom_colors)
     if no_bg:
         t.update(NOBG_OVERRIDE)
     s = lambda base: max(8, int(base * scale))
@@ -213,17 +215,17 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False):
         QLabel#day {{
             font-size: {s(38)}px;
             font-weight: bold;
-            letter-spacing: {s(12)}px;
+            letter-spacing: {s(6)}px;
             color: {t['fg']};
         }}
         QLabel#date {{
             font-size: {s(14)}px;
-            letter-spacing: {s(5)}px;
+            letter-spacing: {s(3)}px;
             color: {t['dim']};
         }}
         QLabel#time {{
             font-size: {s(16)}px;
-            letter-spacing: {s(3)}px;
+            letter-spacing: {s(2)}px;
             color: {t['accent']};
         }}
         QLabel#clock_big {{

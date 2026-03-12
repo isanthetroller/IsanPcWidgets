@@ -7,7 +7,19 @@ from PySide6.QtWidgets import (
     QProgressBar, QGridLayout, QPushButton, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, QTime, QDate
+from PySide6.QtGui import QGuiApplication
 from themes import build_stylesheet
+
+
+def _screen_factor():
+    """Return a multiplier based on primary screen DPI (1.0 at 96 DPI)."""
+    try:
+        scr = QGuiApplication.primaryScreen()
+        if scr:
+            return scr.logicalDotsPerInch() / 96.0
+    except Exception:
+        pass
+    return 1.0
 
 QUOTES = [
     ("The only way to do great work is to love what you do.", "Steve Jobs"),
@@ -83,16 +95,28 @@ class BaseWidget(QWidget):
         self._restore_position()
 
     def apply_theme(self):
+        custom = self.config.get("custom_colors") or None
         self.setStyleSheet(build_stylesheet(
             self.config.get("theme", "emerald"),
             self.config.get("font", "Bahnschrift"),
             self._scale(),
             self.config.get("no_bg", False),
+            custom,
         ))
         self._resize_for_scale()
 
     def _resize_for_scale(self):
         pass
+
+    def _set_adaptive_size(self, base_w, base_h):
+        """Set widget size accounting for scale and screen DPI."""
+        s = self._scale()
+        dpi = _screen_factor()
+        w = int(base_w * s * dpi)
+        h = int(base_h * s * dpi)
+        self.setMinimumSize(w, h)
+        self.setMaximumSize(int(w * 1.3), int(h * 1.5))
+        self.resize(w, h)
 
     def _restore_position(self):
         wc = self.config.get("widgets", {}).get(self.widget_id, {})
@@ -163,12 +187,11 @@ class DateTimeWidget(BaseWidget):
         return DATETIME_TEMPLATES.get(tid, DATETIME_TEMPLATES["classic"])
 
     def _resize_for_scale(self):
-        s = self._scale()
         t = self._get_template()
         if t["layout"] == "compact":
-            self.setFixedSize(int(380 * s), int(80 * s))
+            self._set_adaptive_size(380, 80)
         else:
-            self.setFixedSize(int(380 * s), int(140 * s))
+            self._set_adaptive_size(380, 150)
 
     def _update(self):
         from pickers import DATETIME_TEMPLATES
@@ -225,8 +248,7 @@ class ClockWidget(BaseWidget):
         self.timer.start(1000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(320 * s), int(120 * s))
+        self._set_adaptive_size(320, 130)
 
     def _update(self):
         now = QTime.currentTime()
@@ -272,8 +294,7 @@ class SystemWidget(BaseWidget):
         self.timer.start(3000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(300 * s), int(210 * s))
+        self._set_adaptive_size(300, 210)
 
     def _update(self):
         cpu = round(psutil.cpu_percent(interval=0))
@@ -338,8 +359,7 @@ class StopwatchWidget(BaseWidget):
         self.timer.setInterval(50)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(280 * s), int(180 * s))
+        self._set_adaptive_size(280, 180)
 
     def _toggle(self):
         if self._running:
@@ -398,8 +418,7 @@ class QuotesWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(360 * s), int(170 * s))
+        self._set_adaptive_size(360, 170)
 
     def _show_quote(self):
         text, author = random.choice(QUOTES)
@@ -429,8 +448,7 @@ class CalendarWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(280 * s), int(230 * s))
+        self._set_adaptive_size(280, 240)
 
     def _check_day_change(self):
         if date.today().day != self._current_day:
@@ -487,8 +505,7 @@ class CountdownWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(280 * s), int(160 * s))
+        self._set_adaptive_size(280, 160)
 
     def _update(self):
         try:
@@ -528,8 +545,7 @@ class BatteryWidget(BaseWidget):
         self.timer.start(15000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(220 * s), int(170 * s))
+        self._set_adaptive_size(220, 170)
 
     def _update(self):
         bat = psutil.sensors_battery()
@@ -583,8 +599,7 @@ class UptimeWidget(BaseWidget):
         self.timer.start(30000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(250 * s), int(140 * s))
+        self._set_adaptive_size(250, 140)
 
     def _update(self):
         elapsed = int(time.time() - self._boot)
@@ -637,8 +652,7 @@ class NetworkWidget(BaseWidget):
         self.timer.start(2000)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(240 * s), int(175 * s))
+        self._set_adaptive_size(240, 175)
 
     @staticmethod
     def _fmt(b):
@@ -699,8 +713,7 @@ class NotesWidget(BaseWidget):
         self.text_edit.textChanged.connect(self._on_text_changed)
 
     def _resize_for_scale(self):
-        s = self._scale()
-        self.setFixedSize(int(300 * s), int(260 * s))
+        self._set_adaptive_size(300, 260)
 
     def _on_text_changed(self):
         # Re-center all paragraphs on edit
@@ -718,17 +731,160 @@ class NotesWidget(BaseWidget):
         self.config["widgets"]["notes"]["text"] = self.text_edit.toPlainText()
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# GREETING — time-aware greeting message
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class GreetingWidget(BaseWidget):
+    def __init__(self, config):
+        super().__init__("greeting", config)
+        self.greeting_label = QLabel()
+        self.greeting_label.setObjectName("day")
+        self.greeting_label.setAlignment(Qt.AlignCenter)
+        self.sub_label = QLabel()
+        self.sub_label.setObjectName("date")
+        self.sub_label.setAlignment(Qt.AlignCenter)
+        self.time_label = QLabel()
+        self.time_label.setObjectName("time")
+        self.time_label.setAlignment(Qt.AlignCenter)
+        self.content_layout.addWidget(self.greeting_label)
+        self.content_layout.addWidget(_make_divider())
+        self.content_layout.addWidget(self.sub_label)
+        self.content_layout.addWidget(self.time_label)
+        self._cached_hour = -1
+        self._update()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._update)
+        self.timer.start(30000)
+
+    def _resize_for_scale(self):
+        self._set_adaptive_size(340, 140)
+
+    def _update(self):
+        now = QTime.currentTime()
+        h = now.hour()
+        if h != self._cached_hour:
+            self._cached_hour = h
+            if h < 6:
+                greet = "Good Night"
+            elif h < 12:
+                greet = "Good Morning"
+            elif h < 17:
+                greet = "Good Afternoon"
+            elif h < 21:
+                greet = "Good Evening"
+            else:
+                greet = "Good Night"
+            self.greeting_label.setText(greet)
+            today = QDate.currentDate()
+            self.sub_label.setText(today.toString("dddd, MMMM d").upper())
+        self.time_label.setText(now.toString("h:mm AP"))
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WORLD CLOCK — show a second timezone
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class WorldClockWidget(BaseWidget):
+    def __init__(self, config):
+        super().__init__("worldclock", config)
+        self.title = QLabel("W O R L D   C L O C K")
+        self.title.setObjectName("title")
+        self.title.setAlignment(Qt.AlignCenter)
+        self.content_layout.addWidget(self.title)
+        self.content_layout.addWidget(_make_divider())
+
+        wc = config.get("widgets", {}).get("worldclock", {})
+        self._offsets = wc.get("offsets", [
+            {"name": "NEW YORK", "offset": -5},
+            {"name": "LONDON", "offset": 0},
+            {"name": "TOKYO", "offset": 9},
+        ])
+        self._time_labels = []
+        for tz in self._offsets:
+            row = QHBoxLayout()
+            name_lbl = QLabel(tz["name"])
+            name_lbl.setObjectName("dim")
+            name_lbl.setAlignment(Qt.AlignLeft)
+            time_lbl = QLabel()
+            time_lbl.setObjectName("accent")
+            time_lbl.setAlignment(Qt.AlignRight)
+            row.addWidget(name_lbl)
+            row.addWidget(time_lbl)
+            self.content_layout.addLayout(row)
+            self._time_labels.append(time_lbl)
+
+        self._update()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._update)
+        self.timer.start(30000)
+
+    def _resize_for_scale(self):
+        self._set_adaptive_size(260, 160)
+
+    def _update(self):
+        from datetime import datetime as dt, timezone, timedelta
+        utc_now = dt.now(timezone.utc)
+        for i, tz in enumerate(self._offsets):
+            t = utc_now + timedelta(hours=tz["offset"])
+            self._time_labels[i].setText(t.strftime("%H:%M"))
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DAY PROGRESS — visual bar showing how much of the day has passed
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class DayProgressWidget(BaseWidget):
+    def __init__(self, config):
+        super().__init__("dayprogress", config)
+        self.title = QLabel("D A Y   P R O G R E S S")
+        self.title.setObjectName("title")
+        self.title.setAlignment(Qt.AlignCenter)
+        self.pct_label = QLabel()
+        self.pct_label.setObjectName("accent_big")
+        self.pct_label.setAlignment(Qt.AlignCenter)
+        self.bar = QProgressBar()
+        self.bar.setTextVisible(False)
+        self.bar.setRange(0, 1000)
+        self.detail_label = QLabel()
+        self.detail_label.setObjectName("dim")
+        self.detail_label.setAlignment(Qt.AlignCenter)
+        self.content_layout.addWidget(self.title)
+        self.content_layout.addWidget(_make_divider())
+        self.content_layout.addWidget(self.pct_label)
+        self.content_layout.addWidget(self.bar)
+        self.content_layout.addWidget(self.detail_label)
+        self._update()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._update)
+        self.timer.start(60000)
+
+    def _resize_for_scale(self):
+        self._set_adaptive_size(250, 160)
+
+    def _update(self):
+        now = QTime.currentTime()
+        secs = now.hour() * 3600 + now.minute() * 60 + now.second()
+        pct = secs / 864.0  # percent of 86400 * 10 for 0.1% precision
+        self.bar.setValue(int(pct))
+        display_pct = secs / 864.0
+        self.pct_label.setText(f"{display_pct:.1f}%")
+        remaining = 86400 - secs
+        h, m = divmod(remaining // 60, 60)
+        self.detail_label.setText(f"{h}h {m}m remaining")
+
+
 # ──────────────────────────────────────────────────────────────────────
 WIDGET_CLASSES = {
-    "datetime":  DateTimeWidget,
-    "clock":     ClockWidget,
-    "system":    SystemWidget,
-    "stopwatch": StopwatchWidget,
-    "quotes":    QuotesWidget,
-    "calendar":  CalendarWidget,
-    "countdown": CountdownWidget,
-    "battery":   BatteryWidget,
-    "uptime":    UptimeWidget,
-    "network":   NetworkWidget,
-    "notes":     NotesWidget,
+    "datetime":     DateTimeWidget,
+    "clock":        ClockWidget,
+    "system":       SystemWidget,
+    "stopwatch":    StopwatchWidget,
+    "quotes":       QuotesWidget,
+    "calendar":     CalendarWidget,
+    "countdown":    CountdownWidget,
+    "battery":      BatteryWidget,
+    "uptime":       UptimeWidget,
+    "network":      NetworkWidget,
+    "notes":        NotesWidget,
+    "greeting":     GreetingWidget,
+    "worldclock":   WorldClockWidget,
+    "dayprogress":  DayProgressWidget,
 }

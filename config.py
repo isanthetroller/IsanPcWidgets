@@ -56,6 +56,9 @@ DEFAULT_CONFIG = {
         "uptime":     {"enabled": False, "x": 900, "y": 280, "scale": 1.0},
         "network":    {"enabled": False, "x": 900, "y": 420, "scale": 1.0},
         "notes":      {"enabled": False, "x": 600, "y": 580, "scale": 1.0, "text": ""},
+        "greeting":   {"enabled": False, "x": 200, "y": 750, "scale": 1.0},
+        "worldclock": {"enabled": False, "x": 600, "y": 750, "scale": 1.0},
+        "dayprogress":{"enabled": False, "x": 900, "y": 580, "scale": 1.0},
     },
 }
 
