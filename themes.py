@@ -328,5 +328,32 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         QPushButton#sw_btn:hover {{
             background-color: rgba(128,128,128,80);
         }}
+        QLabel#spotify_title {{
+            font-size: {s(15)}px;
+            font-weight: bold;
+            color: {t['fg']};
+        }}
+        QLabel#spotify_artist {{
+            font-size: {s(12)}px;
+            color: {t['dim']};
+        }}
+        QLabel#spotify_art {{
+            border-radius: {s(8)}px;
+        }}
+        QPushButton#media_btn {{
+            font-size: {s(18)}px;
+            font-family: "{font_family}";
+            color: {t['fg']};
+            background-color: rgba(128,128,128,40);
+            border: 1px solid {t['border']};
+            border-radius: {s(16)}px;
+            min-width: {s(36)}px;
+            min-height: {s(36)}px;
+            max-width: {s(36)}px;
+            max-height: {s(36)}px;
+        }}
+        QPushButton#media_btn:hover {{
+            background-color: rgba(128,128,128,80);
+        }}
     """
 

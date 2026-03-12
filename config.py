@@ -59,6 +59,7 @@ DEFAULT_CONFIG = {
         "greeting":   {"enabled": False, "x": 200, "y": 750, "scale": 1.0},
         "worldclock": {"enabled": False, "x": 600, "y": 750, "scale": 1.0},
         "dayprogress":{"enabled": False, "x": 900, "y": 580, "scale": 1.0},
+        "spotify":    {"enabled": False, "x": 200, "y": 900, "scale": 1.0},
     },
 }
 

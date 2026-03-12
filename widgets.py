@@ -1,5 +1,6 @@
 import random
 import time
+import asyncio
 import psutil
 from datetime import datetime, date
 from PySide6.QtWidgets import (
@@ -7,7 +8,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QGridLayout, QPushButton, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, QTime, QDate
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QPixmap, QImage
 from themes import build_stylesheet
 
 
@@ -871,6 +872,189 @@ class DayProgressWidget(BaseWidget):
         self.detail_label.setText(f"{h}h {m}m remaining")
 
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SPOTIFY / NOW PLAYING — media session from browser or desktop
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def _run_async(coro):
+    """Run an async coroutine from sync code safely."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, coro).result(timeout=3)
+    return asyncio.run(coro)
+
+
+class SpotifyWidget(BaseWidget):
+    def __init__(self, config):
+        super().__init__("spotify", config)
+
+        # Album art
+        self.art_label = QLabel()
+        self.art_label.setObjectName("spotify_art")
+        self.art_label.setAlignment(Qt.AlignCenter)
+        self.art_label.setFixedSize(80, 80)
+        self._default_art()
+
+        # Song info
+        self.title_label = QLabel("No media playing")
+        self.title_label.setObjectName("spotify_title")
+        self.title_label.setWordWrap(True)
+        self.artist_label = QLabel("")
+        self.artist_label.setObjectName("spotify_artist")
+        self.artist_label.setWordWrap(True)
+
+        # Top row: art + info
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
+        top_row.addWidget(self.art_label)
+        info_col = QVBoxLayout()
+        info_col.setSpacing(2)
+        info_col.addStretch()
+        info_col.addWidget(self.title_label)
+        info_col.addWidget(self.artist_label)
+        info_col.addStretch()
+        top_row.addLayout(info_col)
+
+        # Control buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        self.prev_btn = QPushButton("⏮")
+        self.prev_btn.setObjectName("media_btn")
+        self.prev_btn.clicked.connect(self._prev_track)
+        self.play_btn = QPushButton("⏯")
+        self.play_btn.setObjectName("media_btn")
+        self.play_btn.clicked.connect(self._play_pause)
+        self.next_btn = QPushButton("⏭")
+        self.next_btn.setObjectName("media_btn")
+        self.next_btn.clicked.connect(self._next_track)
+        btn_row.addStretch()
+        btn_row.addWidget(self.prev_btn)
+        btn_row.addWidget(self.play_btn)
+        btn_row.addWidget(self.next_btn)
+        btn_row.addStretch()
+
+        self.content_layout.addLayout(top_row)
+        self.content_layout.addWidget(_make_divider())
+        self.content_layout.addLayout(btn_row)
+
+        self._session = None
+        self._last_title = None
+        self._update()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._update)
+        self.timer.start(2000)
+
+    def _resize_for_scale(self):
+        self._set_adaptive_size(340, 150)
+
+    def _default_art(self):
+        """Show a music note placeholder when no art is available."""
+        self.art_label.setText("🎵")
+        self.art_label.setStyleSheet(
+            "font-size: 36px; background: rgba(128,128,128,30); border-radius: 8px;"
+        )
+
+    def _get_session(self):
+        """Get the current media session via WinRT."""
+        try:
+            from winrt.windows.media.control import (
+                GlobalSystemMediaTransportControlsSessionManager as MediaManager,
+            )
+            async def _get():
+                mgr = await MediaManager.request_async()
+                return mgr.get_current_session()
+            return _run_async(_get())
+        except Exception:
+            return None
+
+    def _update(self):
+        session = self._get_session()
+        self._session = session
+        if not session:
+            if self._last_title is not None:
+                self.title_label.setText("No media playing")
+                self.artist_label.setText("")
+                self._default_art()
+                self._last_title = None
+            return
+
+        try:
+            async def _get_info():
+                return await session.try_get_media_properties_async()
+            info = _run_async(_get_info())
+            title = info.title or "Unknown"
+            artist = info.artist or ""
+
+            if title != self._last_title:
+                self._last_title = title
+                self.title_label.setText(title)
+                self.artist_label.setText(artist)
+                self._load_thumbnail(info)
+        except Exception:
+            pass
+
+    def _load_thumbnail(self, info):
+        """Load album art from the media session thumbnail."""
+        try:
+            thumb = info.thumbnail
+            if thumb is None:
+                self._default_art()
+                return
+
+            async def _read_thumb():
+                stream = await thumb.open_read_async()
+                size = stream.size
+                from winrt.windows.storage.streams import (
+                    DataReader,
+                )
+                reader = DataReader(stream)
+                await reader.load_async(size)
+                buf = reader.read_buffer(size)
+                # Convert IBuffer to bytes
+                return bytes(buf)
+
+            data = _run_async(_read_thumb())
+            if data:
+                img = QImage.fromData(data)
+                if not img.isNull():
+                    px = QPixmap.fromImage(img).scaled(
+                        80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    )
+                    self.art_label.setPixmap(px)
+                    self.art_label.setStyleSheet(
+                        "background: transparent; border-radius: 8px;"
+                    )
+                    return
+        except Exception:
+            pass
+        self._default_art()
+
+    def _play_pause(self):
+        if self._session:
+            try:
+                _run_async(self._session.try_toggle_play_pause_async())
+            except Exception:
+                pass
+
+    def _next_track(self):
+        if self._session:
+            try:
+                _run_async(self._session.try_skip_next_async())
+            except Exception:
+                pass
+
+    def _prev_track(self):
+        if self._session:
+            try:
+                _run_async(self._session.try_skip_previous_async())
+            except Exception:
+                pass
+
+
 # ──────────────────────────────────────────────────────────────────────
 WIDGET_CLASSES = {
     "datetime":     DateTimeWidget,
@@ -887,4 +1071,5 @@ WIDGET_CLASSES = {
     "greeting":     GreetingWidget,
     "worldclock":   WorldClockWidget,
     "dayprogress":  DayProgressWidget,
+    "spotify":      SpotifyWidget,
 }
