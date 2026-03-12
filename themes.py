@@ -193,7 +193,8 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         t.update(custom_colors)
     if no_bg:
         t.update(NOBG_OVERRIDE)
-    s = lambda base: max(8, int(base * scale))
+    s = lambda base: max(8, int(base * scale))   # font sizes (min 8px)
+    sp = lambda base: max(0, int(base * scale))   # spacing (no floor)
 
     return f"""
         QWidget#widgetBg {{
@@ -215,35 +216,41 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         QLabel#day {{
             font-size: {s(38)}px;
             font-weight: bold;
-            letter-spacing: {s(6)}px;
+            letter-spacing: {sp(4)}px;
+            padding-right: {sp(4)}px;
             color: {t['fg']};
         }}
         QLabel#date {{
-            font-size: {s(14)}px;
-            letter-spacing: {s(3)}px;
+            font-size: {s(16)}px;
+            letter-spacing: {sp(2)}px;
+            padding-right: {sp(2)}px;
             color: {t['dim']};
         }}
         QLabel#time {{
-            font-size: {s(16)}px;
-            letter-spacing: {s(2)}px;
+            font-size: {s(18)}px;
+            letter-spacing: {sp(2)}px;
+            padding-right: {sp(2)}px;
             color: {t['accent']};
         }}
         QLabel#clock_big {{
             font-size: {s(56)}px;
             font-weight: bold;
-            letter-spacing: {s(4)}px;
+            letter-spacing: {sp(3)}px;
+            padding-right: {sp(3)}px;
             color: {t['fg']};
         }}
         QLabel#clock_sec {{
             font-size: {s(20)}px;
             color: {t['accent']};
-            letter-spacing: {s(2)}px;
+            letter-spacing: {sp(2)}px;
+            padding-right: {sp(2)}px;
         }}
         QLabel#title {{
-            font-size: {s(10)}px;
+            font-size: {s(13)}px;
             color: {t['accent']};
             font-weight: bold;
-            letter-spacing: {s(3)}px;
+            letter-spacing: {sp(2)}px;
+            padding-right: {sp(2)}px;
         }}
         QLabel#big {{
             font-size: {s(32)}px;
@@ -251,15 +258,15 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             color: {t['fg']};
         }}
         QLabel#medium {{
-            font-size: {s(14)}px;
+            font-size: {s(16)}px;
             color: {t['fg']};
         }}
         QLabel#dim {{
-            font-size: {s(12)}px;
+            font-size: {s(14)}px;
             color: {t['dim']};
         }}
         QLabel#accent {{
-            font-size: {s(14)}px;
+            font-size: {s(16)}px;
             color: {t['accent']};
         }}
         QLabel#accent_big {{
@@ -270,7 +277,8 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         QLabel#stopwatch_display {{
             font-size: {s(42)}px;
             font-weight: bold;
-            letter-spacing: {s(3)}px;
+            letter-spacing: {sp(3)}px;
+            padding-right: {sp(3)}px;
             color: {t['fg']};
         }}
         QLabel#stopwatch_ms {{
@@ -278,12 +286,12 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             color: {t['accent']};
         }}
         QLabel#quote_text {{
-            font-size: {s(15)}px;
+            font-size: {s(16)}px;
             font-style: italic;
             color: {t['fg']};
         }}
         QLabel#quote_author {{
-            font-size: {s(11)}px;
+            font-size: {s(13)}px;
             color: {t['dim']};
         }}
         QLabel#divider {{
@@ -292,11 +300,11 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             min-height: 1px;
         }}
         QLabel#net_up {{
-            font-size: {s(13)}px;
+            font-size: {s(15)}px;
             color: {t['accent']};
         }}
         QLabel#net_down {{
-            font-size: {s(13)}px;
+            font-size: {s(15)}px;
             color: {t['fg']};
         }}
         QTextEdit {{
@@ -304,7 +312,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             background: transparent;
             border: none;
             font-family: "{font_family}";
-            font-size: {s(13)}px;
+            font-size: {s(14)}px;
         }}
         QProgressBar {{
             background-color: rgba(128, 128, 128, 40);
@@ -317,7 +325,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             border-radius: {s(3)}px;
         }}
         QPushButton#sw_btn {{
-            font-size: {s(11)}px;
+            font-size: {s(13)}px;
             font-family: "{font_family}";
             color: {t['fg']};
             background-color: rgba(128,128,128,40);
@@ -329,12 +337,12 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             background-color: rgba(128,128,128,80);
         }}
         QLabel#spotify_title {{
-            font-size: {s(15)}px;
+            font-size: {s(16)}px;
             font-weight: bold;
             color: {t['fg']};
         }}
         QLabel#spotify_artist {{
-            font-size: {s(12)}px;
+            font-size: {s(14)}px;
             color: {t['dim']};
         }}
         QLabel#spotify_art {{

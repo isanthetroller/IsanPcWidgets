@@ -123,6 +123,54 @@ class TrayManager:
             wa.setDefaultWidget(row)
             size_menu.addAction(wa)
 
+        # ── Per-widget opacity sliders ──
+        opacity_menu = self.menu.addMenu("🌓  Widget Opacity")
+        opacity_menu.setStyleSheet(MENU_STYLE)
+        for wid, widget in self.widgets.items():
+            wc = self.config.get("widgets", {}).get(wid, {})
+            current_opacity = wc.get("opacity", 1.0)
+            pct = int(current_opacity * 100)
+
+            row = QWidget()
+            row.setStyleSheet("background: transparent;")
+            lay = QHBoxLayout(row)
+            lay.setContentsMargins(12, 4, 12, 4)
+
+            lbl = QLabel(f"{wid.capitalize()}")
+            lbl.setFixedWidth(80)
+            lbl.setStyleSheet("color: #e0e0e0; font-size: 12px;")
+
+            slider = QSlider(Qt.Horizontal)
+            slider.setRange(10, 100)  # 10% to 100%
+            slider.setValue(pct)
+            slider.setFixedWidth(120)
+            slider.setStyleSheet("""
+                QSlider::groove:horizontal {
+                    background: #444; height: 4px; border-radius: 2px;
+                }
+                QSlider::handle:horizontal {
+                    background: #C0A0FF; width: 12px; height: 12px;
+                    margin: -4px 0; border-radius: 6px;
+                }
+                QSlider::sub-page:horizontal {
+                    background: #6B3FA0; border-radius: 2px;
+                }
+            """)
+
+            val_lbl = QLabel(f"{pct}%")
+            val_lbl.setFixedWidth(40)
+            val_lbl.setStyleSheet("color: #C0A0FF; font-size: 11px;")
+
+            slider.valueChanged.connect(self._make_opacity_handler(wid, val_lbl))
+
+            lay.addWidget(lbl)
+            lay.addWidget(slider)
+            lay.addWidget(val_lbl)
+
+            wa = QWidgetAction(opacity_menu)
+            wa.setDefaultWidget(row)
+            opacity_menu.addAction(wa)
+
         self.menu.addSeparator()
 
         # ── Theme picker ──
@@ -182,6 +230,18 @@ class TrayManager:
             w = self.widgets.get(wid)
             if w:
                 w.apply_theme()
+            self.save_fn()
+        return handler
+
+    def _make_opacity_handler(self, wid, val_lbl):
+        def handler(value):
+            opacity = value / 100.0
+            val_lbl.setText(f"{value}%")
+            self.config.setdefault("widgets", {}).setdefault(wid, {})
+            self.config["widgets"][wid]["opacity"] = round(opacity, 2)
+            w = self.widgets.get(wid)
+            if w:
+                w.setWindowOpacity(max(0.1, min(1.0, opacity)))
             self.save_fn()
         return handler
 

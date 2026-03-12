@@ -104,6 +104,9 @@ class BaseWidget(QWidget):
             self.config.get("no_bg", False),
             custom,
         ))
+        # Apply per-widget opacity
+        opacity = self.config.get("widgets", {}).get(self.widget_id, {}).get("opacity", 1.0)
+        self.setWindowOpacity(max(0.1, min(1.0, opacity)))
         self._resize_for_scale()
 
     def _resize_for_scale(self):
@@ -116,7 +119,7 @@ class BaseWidget(QWidget):
         w = int(base_w * s * dpi)
         h = int(base_h * s * dpi)
         self.setMinimumSize(w, h)
-        self.setMaximumSize(int(w * 1.3), int(h * 1.5))
+        self.setMaximumSize(int(w * 1.5), int(h * 1.8))
         self.resize(w, h)
 
     def _restore_position(self):
@@ -190,9 +193,9 @@ class DateTimeWidget(BaseWidget):
     def _resize_for_scale(self):
         t = self._get_template()
         if t["layout"] == "compact":
-            self._set_adaptive_size(380, 80)
+            self._set_adaptive_size(460, 80)
         else:
-            self._set_adaptive_size(380, 150)
+            self._set_adaptive_size(460, 160)
 
     def _update(self):
         from pickers import DATETIME_TEMPLATES
@@ -249,7 +252,7 @@ class ClockWidget(BaseWidget):
         self.timer.start(1000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(320, 130)
+        self._set_adaptive_size(340, 140)
 
     def _update(self):
         now = QTime.currentTime()
@@ -295,7 +298,7 @@ class SystemWidget(BaseWidget):
         self.timer.start(3000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(300, 210)
+        self._set_adaptive_size(320, 220)
 
     def _update(self):
         cpu = round(psutil.cpu_percent(interval=0))
@@ -419,7 +422,7 @@ class QuotesWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(360, 170)
+        self._set_adaptive_size(360, 180)
 
     def _show_quote(self):
         text, author = random.choice(QUOTES)
@@ -449,7 +452,7 @@ class CalendarWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(280, 240)
+        self._set_adaptive_size(320, 260)
 
     def _check_day_change(self):
         if date.today().day != self._current_day:
@@ -758,7 +761,7 @@ class GreetingWidget(BaseWidget):
         self.timer.start(30000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(340, 140)
+        self._set_adaptive_size(370, 150)
 
     def _update(self):
         now = QTime.currentTime()
@@ -819,7 +822,7 @@ class WorldClockWidget(BaseWidget):
         self.timer.start(30000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(260, 160)
+        self._set_adaptive_size(280, 170)
 
     def _update(self):
         from datetime import datetime as dt, timezone, timedelta
@@ -858,7 +861,7 @@ class DayProgressWidget(BaseWidget):
         self.timer.start(60000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(250, 160)
+        self._set_adaptive_size(270, 170)
 
     def _update(self):
         now = QTime.currentTime()
