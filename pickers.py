@@ -795,3 +795,236 @@ class ColorPickerDialog(QDialog):
     def _reset(self):
         self.colors_changed.emit({})
         self.accept()
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  WIDGET STYLE TEMPLATES (per-widget customization)
+# ══════════════════════════════════════════════════════════════════════
+
+WIDGET_STYLES = {
+    "clock": {
+        "classic": {"name": "Classic", "desc": "24-hour with seconds below", "fmt": "HH:mm", "sec_fmt": ":ss", "show_sec": True, "ampm": False},
+        "digital": {"name": "Digital", "desc": "24-hour with seconds inline", "fmt": "HH:mm:ss", "sec_fmt": "", "show_sec": False, "ampm": False},
+        "twelve": {"name": "12-Hour", "desc": "12-hour with AM/PM", "fmt": "h:mm", "sec_fmt": " AP", "show_sec": True, "ampm": True},
+        "minimal": {"name": "Minimal", "desc": "Just hours and minutes", "fmt": "HH:mm", "sec_fmt": "", "show_sec": False, "ampm": False},
+        "dots": {"name": "Dots", "desc": "Dotted separator style", "fmt": "HH · mm", "sec_fmt": "", "show_sec": False, "ampm": False},
+    },
+    "system": {
+        "default": {"name": "Default", "desc": "CPU, RAM, Disk with bars", "show_disk": True, "show_bars": True, "title": "S Y S T E M"},
+        "compact": {"name": "Compact", "desc": "CPU and RAM only", "show_disk": False, "show_bars": True, "title": "S Y S T E M"},
+        "minimal": {"name": "Minimal", "desc": "Percentages, no bars", "show_disk": True, "show_bars": False, "title": "S Y S T E M"},
+        "monitor": {"name": "Monitor", "desc": "Full stats, all bars", "show_disk": True, "show_bars": True, "title": "⚡  S Y S T E M"},
+    },
+    "stopwatch": {
+        "default": {"name": "Default", "desc": "MM:SS with .ms below", "show_ms": True, "title": "S T O P W A T C H"},
+        "clean": {"name": "Clean", "desc": "MM:SS only, no ms", "show_ms": False, "title": "S T O P W A T C H"},
+        "timer": {"name": "Timer", "desc": "With TIMER title", "show_ms": True, "title": "⏱  T I M E R"},
+    },
+    "quotes": {
+        "default": {"name": "Default", "desc": "Bird icon with italic quote", "icon": "🕊", "show_icon": True, "italic": True},
+        "minimal": {"name": "Minimal", "desc": "No icon, clean look", "icon": "", "show_icon": False, "italic": True},
+        "elegant": {"name": "Elegant", "desc": "Sparkle icon, italic", "icon": "✨", "show_icon": True, "italic": True},
+        "bold": {"name": "Bold", "desc": "Fire icon, strong text", "icon": "🔥", "show_icon": True, "italic": False},
+        "zen": {"name": "Zen", "desc": "Lotus flower, peaceful", "icon": "🪷", "show_icon": True, "italic": True},
+        "star": {"name": "Star", "desc": "Star icon, bright feel", "icon": "⭐", "show_icon": True, "italic": True},
+    },
+    "calendar": {
+        "default": {"name": "Default", "desc": "Full month grid, MO start", "title_fmt": "%B  %Y", "title_transform": "upper", "week_start": 0},
+        "minimal": {"name": "Minimal", "desc": "Short month name", "title_fmt": "%b %Y", "title_transform": "upper", "week_start": 0},
+        "sunday": {"name": "Sunday Start", "desc": "Week starts on Sunday", "title_fmt": "%B  %Y", "title_transform": "upper", "week_start": 6},
+        "elegant": {"name": "Elegant", "desc": "Title case month name", "title_fmt": "%B %Y", "title_transform": "title", "week_start": 0},
+    },
+    "countdown": {
+        "default": {"name": "Default", "desc": "Big number + DAYS REMAINING", "unit": "days", "sub_text": "D A Y S   R E M A I N I N G"},
+        "weeks": {"name": "Weeks", "desc": "Show in weeks + days", "unit": "weeks", "sub_text": ""},
+        "detailed": {"name": "Detailed", "desc": "Months, weeks, and days", "unit": "detailed", "sub_text": ""},
+    },
+    "battery": {
+        "default": {"name": "Default", "desc": "Big %, bar, and status", "show_bar": True, "title": "B A T T E R Y"},
+        "minimal": {"name": "Minimal", "desc": "Just percentage + status", "show_bar": False, "title": "B A T T E R Y"},
+        "power": {"name": "Power", "desc": "With power icon in title", "show_bar": True, "title": "🔋  B A T T E R Y"},
+    },
+    "uptime": {
+        "default": {"name": "Default", "desc": "Hours + minutes, since time", "fmt": "short", "title": "U P T I M E"},
+        "detailed": {"name": "Detailed", "desc": "Days, hours, minutes, seconds", "fmt": "full", "title": "U P T I M E"},
+        "compact": {"name": "Compact", "desc": "Just hours and minutes", "fmt": "compact", "title": "U P T I M E"},
+    },
+    "network": {
+        "default": {"name": "Default", "desc": "Up/Down speeds + total", "show_total": True, "title": "N E T W O R K"},
+        "speed": {"name": "Speed Only", "desc": "Just upload/download", "show_total": False, "title": "N E T W O R K"},
+        "globe": {"name": "Globe", "desc": "With globe icon", "show_total": True, "title": "🌐  N E T W O R K"},
+    },
+    "notes": {
+        "default": {"name": "Default", "desc": "Centered title + text area", "title": "N O T E S", "show_title": True},
+        "clean": {"name": "Clean", "desc": "No title, just text", "title": "", "show_title": False},
+        "journal": {"name": "Journal", "desc": "With journal icon", "title": "📝  N O T E S", "show_title": True},
+    },
+    "greeting": {
+        "default": {"name": "Default", "desc": "Good Morning + date + time", "fmt": "standard", "time_fmt": "h:mm AP"},
+        "casual": {"name": "Casual", "desc": "Hey there! + time", "fmt": "casual", "time_fmt": "h:mm AP"},
+        "formal": {"name": "Formal", "desc": "Full formal greeting", "fmt": "formal", "time_fmt": "HH:mm"},
+        "wave": {"name": "Wave", "desc": "Wave emoji greeting", "fmt": "wave", "time_fmt": "h:mm AP"},
+    },
+    "worldclock": {
+        "default": {"name": "Default", "desc": "City name + 24h time", "time_fmt": "%H:%M", "title": "W O R L D   C L O C K"},
+        "twelve": {"name": "12-Hour", "desc": "City name + 12h AM/PM", "time_fmt": "%I:%M %p", "title": "W O R L D   C L O C K"},
+        "globe": {"name": "Globe", "desc": "Globe icon in title", "time_fmt": "%H:%M", "title": "🌍  W O R L D   C L O C K"},
+    },
+    "dayprogress": {
+        "default": {"name": "Default", "desc": "Big %, bar, remaining time", "show_bar": True, "show_remaining": True, "title": "D A Y   P R O G R E S S"},
+        "minimal": {"name": "Minimal", "desc": "Just percentage + bar", "show_bar": True, "show_remaining": False, "title": "D A Y   P R O G R E S S"},
+        "text": {"name": "Text Only", "desc": "Percentage + remaining, no bar", "show_bar": False, "show_remaining": True, "title": "D A Y   P R O G R E S S"},
+    },
+    "spotify": {
+        "default": {"name": "Default", "desc": "Album art + info + controls", "show_art": True, "show_controls": True},
+        "compact": {"name": "Compact", "desc": "No album art, just info + controls", "show_art": False, "show_controls": True},
+        "display": {"name": "Display", "desc": "Album art + info, no controls", "show_art": True, "show_controls": False},
+    },
+}
+
+
+# ── Generic preview label builder for style cards ──
+
+def _style_preview_lines(widget_id, style_data):
+    """Return a list of (text, role) for the style card preview."""
+    if widget_id == "clock":
+        return [("12:30", "big"), (style_data.get("sec_fmt", ":45") or "", "accent")]
+    elif widget_id == "system":
+        return [("CPU 23%", "medium"), ("RAM 4.2 / 16 GB", "medium")]
+    elif widget_id == "stopwatch":
+        return [("03:42", "big"), (".87" if style_data.get("show_ms") else "", "accent")]
+    elif widget_id == "quotes":
+        icon = style_data.get("icon", "🕊")
+        return [(icon, "icon"), ('"Stay hungry..."', "medium"), ("— Steve Jobs", "dim")]
+    elif widget_id == "calendar":
+        return [("MARCH  2026", "title"), ("MO TU WE TH FR", "dim")]
+    elif widget_id == "countdown":
+        return [("294", "big"), (style_data.get("sub_text", "") or "until target", "dim")]
+    elif widget_id == "battery":
+        return [("78%", "big"), ("⚡ Charging", "dim")]
+    elif widget_id == "uptime":
+        return [("11h 22m", "big"), ("since 10:53", "dim")]
+    elif widget_id == "network":
+        return [("↑ 12 KB/s", "accent"), ("↓ 340 KB/s", "medium")]
+    elif widget_id == "notes":
+        return [("Type your notes...", "dim")]
+    elif widget_id == "greeting":
+        return [("Good Morning", "big"), ("THURSDAY, MARCH 12", "dim")]
+    elif widget_id == "worldclock":
+        return [("NEW YORK  05:30", "accent"), ("TOKYO  19:30", "accent")]
+    elif widget_id == "dayprogress":
+        return [("58.3%", "big"), ("10h 2m remaining", "dim")]
+    elif widget_id == "spotify":
+        return [("🎵 Song Title", "medium"), ("Artist Name", "dim")]
+    return [("Preview", "medium")]
+
+
+class WidgetStyleCard(QFrame):
+    clicked = Signal(str)
+
+    def __init__(self, style_id, style_data, widget_id, theme_colors, is_selected=False, parent=None):
+        super().__init__(parent)
+        self.style_id = style_id
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedSize(220, 110)
+
+        bg = theme_colors.get("bg", "rgba(0,105,62,235)")
+        fg = theme_colors.get("fg", "#FFFFFF")
+        accent = theme_colors.get("accent", "#A8F0D0")
+        dim = theme_colors.get("dim", "rgba(255,255,255,120)")
+
+        border_col = "#FFFFFF" if is_selected else "transparent"
+        bw = 3 if is_selected else 0
+
+        self.setStyleSheet(f"""
+            WidgetStyleCard {{
+                background-color: {bg};
+                border: {bw}px solid {border_col};
+                border-radius: 10px;
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 8, 14, 8)
+        layout.setSpacing(2)
+
+        name_lbl = QLabel(f"{style_data['name']}  —  {style_data['desc']}")
+        name_lbl.setStyleSheet(f"color: {dim}; font-size: 9px; background: transparent; border: none;")
+        name_lbl.setWordWrap(True)
+        layout.addWidget(name_lbl)
+
+        color_map = {"big": fg, "medium": fg, "accent": accent, "dim": dim, "title": accent, "icon": fg}
+        size_map = {"big": 18, "medium": 12, "accent": 12, "dim": 10, "title": 10, "icon": 20}
+
+        for text, role in _style_preview_lines(widget_id, style_data):
+            if not text:
+                continue
+            lbl = QLabel(text)
+            c = color_map.get(role, fg)
+            sz = size_map.get(role, 12)
+            bold = "font-weight: bold;" if role in ("big", "title") else ""
+            italic = "font-style: italic;" if role == "medium" and widget_id == "quotes" and style_data.get("italic") else ""
+            lbl.setStyleSheet(f"color: {c}; font-size: {sz}px; {bold} {italic} background: transparent; border: none;")
+            lbl.setAlignment(Qt.AlignCenter)
+            layout.addWidget(lbl)
+
+        layout.addStretch()
+
+    def mousePressEvent(self, event):
+        self.clicked.emit(self.style_id)
+
+
+class WidgetStylePickerDialog(QDialog):
+    style_selected = Signal(str)
+
+    def __init__(self, widget_id, current_style, theme_colors, parent=None):
+        super().__init__(parent)
+        self._widget_id = widget_id
+        self._current = current_style
+
+        styles = WIDGET_STYLES.get(widget_id, {})
+        nice_name = widget_id.replace("dayprogress", "Day Progress").replace("worldclock", "World Clock").capitalize()
+
+        self.setWindowTitle(f"{nice_name} Style")
+        self.setMinimumSize(500, 400)
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setStyleSheet(DIALOG_STYLE)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 16, 20, 16)
+        main_layout.setSpacing(8)
+
+        heading = QLabel(f"🎨  {nice_name} Style")
+        heading.setObjectName("heading")
+        main_layout.addWidget(heading)
+
+        subhead = QLabel(f"{len(styles)} styles  ·  Click to apply")
+        subhead.setObjectName("subhead")
+        main_layout.addWidget(subhead)
+
+        main_layout.addSpacing(4)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(SCROLLBAR_STYLE)
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        grid = QGridLayout(container)
+        grid.setSpacing(12)
+        grid.setContentsMargins(4, 4, 4, 4)
+
+        cols = 2
+        for i, (sid, sdata) in enumerate(styles.items()):
+            card = WidgetStyleCard(sid, sdata, widget_id, theme_colors, is_selected=(sid == current_style))
+            card.clicked.connect(self._on_clicked)
+            grid.addWidget(card, i // cols, i % cols)
+
+        scroll.setWidget(container)
+        main_layout.addWidget(scroll)
+
+    def _on_clicked(self, style_id):
+        self.style_selected.emit(style_id)
+        self.accept()

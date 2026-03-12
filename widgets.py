@@ -167,6 +167,14 @@ class BaseWidget(QWidget):
     def _scale(self):
         return max(0.4, min(3.0, self.config.get("widgets", {}).get(self.widget_id, {}).get("scale", 1.0)))
 
+    def _get_style(self):
+        """Get the current style dict for this widget from WIDGET_STYLES."""
+        from pickers import WIDGET_STYLES
+        styles = WIDGET_STYLES.get(self.widget_id, {})
+        sid = self.config.get("widgets", {}).get(self.widget_id, {}).get("style", "default")
+        first_key = next(iter(styles), "default")
+        return styles.get(sid, styles.get(first_key, {}))
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # DATETIME — template-based day/date/time
@@ -265,9 +273,23 @@ class ClockWidget(BaseWidget):
         self._set_adaptive_size(340, 140)
 
     def _update(self):
+        st = self._get_style()
         now = QTime.currentTime()
-        self.time_label.setText(now.toString("HH:mm"))
-        self.sec_label.setText(now.toString(":ss"))
+        fmt = st.get("fmt", "HH:mm")
+        # Handle custom format strings that aren't Qt format
+        if " · " in fmt:
+            self.time_label.setText(now.toString("HH") + " · " + now.toString("mm"))
+        else:
+            self.time_label.setText(now.toString(fmt))
+        if st.get("show_sec", True):
+            sec_fmt = st.get("sec_fmt", ":ss")
+            if st.get("ampm"):
+                self.sec_label.setText(now.toString(":ss") + (" AM" if now.hour() < 12 else " PM"))
+            else:
+                self.sec_label.setText(now.toString(sec_fmt))
+            self.sec_label.show()
+        else:
+            self.sec_label.hide()
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -308,9 +330,19 @@ class SystemWidget(BaseWidget):
         self.timer.start(3000)
 
     def _resize_for_scale(self):
-        self._set_adaptive_size(320, 220)
+        st = self._get_style()
+        self._set_adaptive_size(320, 160 if st.get("show_disk", True) else 160)
+        # Apply style-specific visibility
+        show_disk = st.get("show_disk", True)
+        self.disk_label.setVisible(show_disk)
+        self.disk_bar.setVisible(show_disk and st.get("show_bars", True))
+        self.cpu_bar.setVisible(st.get("show_bars", True))
+        self.ram_bar.setVisible(st.get("show_bars", True))
+        title_text = st.get("title", "S Y S T E M")
+        self.title.setText(title_text)
 
     def _update(self):
+        st = self._get_style()
         cpu = round(psutil.cpu_percent(interval=0))
         if cpu != self._prev["cpu"]:
             self._prev["cpu"] = cpu
@@ -324,14 +356,15 @@ class SystemWidget(BaseWidget):
             total = mem.total / (1024 ** 3)
             self.ram_label.setText(f"R A M          {used:.1f} / {total:.1f} GB")
             self.ram_bar.setValue(ram)
-        self._disk_tick += 1
-        if self._disk_tick >= 10 or self._prev["disk"] is None:
-            self._disk_tick = 0
-            disk = round(psutil.disk_usage("C:\\").percent)
-            if disk != self._prev["disk"]:
-                self._prev["disk"] = disk
-                self.disk_label.setText(f"D I S K        {disk}%")
-                self.disk_bar.setValue(disk)
+        if st.get("show_disk", True):
+            self._disk_tick += 1
+            if self._disk_tick >= 10 or self._prev["disk"] is None:
+                self._disk_tick = 0
+                disk = round(psutil.disk_usage("C:\\").percent)
+                if disk != self._prev["disk"]:
+                    self._prev["disk"] = disk
+                    self.disk_label.setText(f"D I S K        {disk}%")
+                    self.disk_bar.setValue(disk)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -374,6 +407,9 @@ class StopwatchWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(280, 180)
+        st = self._get_style()
+        self.title.setText(st.get("title", "S T O P W A T C H"))
+        self.ms_label.setVisible(st.get("show_ms", True))
 
     def _toggle(self):
         if self._running:
@@ -433,11 +469,22 @@ class QuotesWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(360, 180)
+        st = self._get_style()
+        icon_text = st.get("icon", "🕊")
+        if st.get("show_icon", True) and icon_text:
+            self.bird.setText(icon_text)
+            self.bird.show()
+        else:
+            self.bird.hide()
 
     def _show_quote(self):
         text, author = random.choice(QUOTES)
-        self.quote_label.setText(f'"{text}"')
-        self.author_label.setText(f"— {author}")
+        st = self._get_style()
+        if st.get("italic", True):
+            self.quote_label.setText(f'\u201c{text}\u201d')
+        else:
+            self.quote_label.setText(text)
+        self.author_label.setText(f"\u2014 {author}")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -470,19 +517,33 @@ class CalendarWidget(BaseWidget):
             self._build_calendar()
 
     def _build_calendar(self):
+        st = self._get_style()
         for lbl in self._day_labels:
             lbl.deleteLater()
         self._day_labels = []
         today = date.today()
-        self.month_label.setText(today.strftime("%B  %Y").upper())
-        for i, d in enumerate(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]):
+        title_fmt = st.get("title_fmt", "%B  %Y")
+        title_text = today.strftime(title_fmt)
+        if st.get("title_transform", "upper") == "upper":
+            title_text = title_text.upper()
+        elif st.get("title_transform") == "title":
+            title_text = title_text.title()
+        self.month_label.setText(title_text)
+
+        week_start = st.get("week_start", 0)  # 0=Monday, 6=Sunday
+        if week_start == 6:
+            day_names = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
+        else:
+            day_names = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+        for i, d in enumerate(day_names):
             lbl = QLabel(d)
             lbl.setObjectName("dim")
             lbl.setAlignment(Qt.AlignCenter)
             self.grid.addWidget(lbl, 0, i)
             self._day_labels.append(lbl)
-        import calendar
-        for row_idx, week in enumerate(calendar.monthcalendar(today.year, today.month)):
+        import calendar as cal_mod
+        c = cal_mod.Calendar(firstweekday=week_start)
+        for row_idx, week in enumerate(c.monthdayscalendar(today.year, today.month)):
             for col_idx, day in enumerate(week):
                 lbl = QLabel(str(day) if day else "")
                 lbl.setObjectName("accent" if day == today.day else "dim")
@@ -522,9 +583,25 @@ class CountdownWidget(BaseWidget):
         self._set_adaptive_size(280, 160)
 
     def _update(self):
+        st = self._get_style()
         try:
             target = datetime.strptime(self.target_str, "%Y-%m-%d").date()
-            self.days_label.setText(str(max(0, (target - date.today()).days)))
+            delta = max(0, (target - date.today()).days)
+            unit = st.get("unit", "days")
+            if unit == "weeks":
+                weeks = delta // 7
+                days_r = delta % 7
+                self.days_label.setText(str(weeks))
+                self.sub_label.setText(f"W E E K S  +  {days_r}  D A Y S")
+            elif unit == "detailed":
+                months = delta // 30
+                weeks = (delta % 30) // 7
+                days_r = delta % 7
+                self.days_label.setText(str(delta))
+                self.sub_label.setText(f"{months}mo  {weeks}w  {days_r}d")
+            else:
+                self.days_label.setText(str(delta))
+                self.sub_label.setText(st.get("sub_text", "D A Y S   R E M A I N I N G"))
         except ValueError:
             self.days_label.setText("?")
 
@@ -560,6 +637,9 @@ class BatteryWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(220, 170)
+        st = self._get_style()
+        self.title.setText(st.get("title", "B A T T E R Y"))
+        self.bar.setVisible(st.get("show_bar", True))
 
     def _update(self):
         bat = psutil.sensors_battery()
@@ -614,8 +694,11 @@ class UptimeWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(250, 140)
+        st = self._get_style()
+        self.title.setText(st.get("title", "U P T I M E"))
 
     def _update(self):
+        st = self._get_style()
         elapsed = int(time.time() - self._boot)
         mins = elapsed // 60
         if mins == self._prev_min:
@@ -624,13 +707,26 @@ class UptimeWidget(BaseWidget):
         days, rem = divmod(elapsed, 86400)
         hours, rem = divmod(rem, 3600)
         minutes = rem // 60
-        if days > 0:
-            self.uptime_label.setText(f"{days}d {hours}h")
-            self.detail_label.setText(f"{minutes}m elapsed")
+        seconds = rem % 60
+        fmt = st.get("fmt", "short")
+        if fmt == "full":
+            if days > 0:
+                self.uptime_label.setText(f"{days}d {hours}h {minutes}m")
+            else:
+                self.uptime_label.setText(f"{hours}h {minutes}m {seconds}s")
+            self.detail_label.setText(f"{elapsed:,} seconds total")
+        elif fmt == "compact":
+            total_h = days * 24 + hours
+            self.uptime_label.setText(f"{total_h}h {minutes}m")
+            self.detail_label.setText("")
         else:
-            self.uptime_label.setText(f"{hours}h {minutes}m")
-            from datetime import datetime as dt
-            self.detail_label.setText(f"since {dt.fromtimestamp(self._boot).strftime('%H:%M')}")
+            if days > 0:
+                self.uptime_label.setText(f"{days}d {hours}h")
+                self.detail_label.setText(f"{minutes}m elapsed")
+            else:
+                self.uptime_label.setText(f"{hours}h {minutes}m")
+                from datetime import datetime as dt
+                self.detail_label.setText(f"since {dt.fromtimestamp(self._boot).strftime('%H:%M')}")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -667,6 +763,10 @@ class NetworkWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(240, 175)
+        st = self._get_style()
+        self.title.setText(st.get("title", "N E T W O R K"))
+        show_total = st.get("show_total", True)
+        self.total_label.setVisible(show_total)
 
     @staticmethod
     def _fmt(b):
@@ -728,6 +828,12 @@ class NotesWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(300, 260)
+        st = self._get_style()
+        if st.get("show_title", True):
+            self.title.setText(st.get("title", "N O T E S"))
+            self.title.show()
+        else:
+            self.title.hide()
 
     def _on_text_changed(self):
         # Re-center all paragraphs on edit
@@ -774,24 +880,61 @@ class GreetingWidget(BaseWidget):
         self._set_adaptive_size(370, 150)
 
     def _update(self):
+        st = self._get_style()
         now = QTime.currentTime()
         h = now.hour()
         if h != self._cached_hour:
             self._cached_hour = h
-            if h < 6:
-                greet = "Good Night"
-            elif h < 12:
-                greet = "Good Morning"
-            elif h < 17:
-                greet = "Good Afternoon"
-            elif h < 21:
-                greet = "Good Evening"
+            fmt = st.get("fmt", "standard")
+            if fmt == "casual":
+                if h < 6:
+                    greet = "Hey, Night Owl"
+                elif h < 12:
+                    greet = "Hey There!"
+                elif h < 17:
+                    greet = "What's Up!"
+                elif h < 21:
+                    greet = "Hey, Evening!"
+                else:
+                    greet = "Hey, Night Owl"
+            elif fmt == "formal":
+                if h < 6:
+                    greet = "Good Night"
+                elif h < 12:
+                    greet = "Good Morning"
+                elif h < 17:
+                    greet = "Good Afternoon"
+                elif h < 21:
+                    greet = "Good Evening"
+                else:
+                    greet = "Good Night"
+            elif fmt == "wave":
+                if h < 6:
+                    greet = "🌙 Good Night"
+                elif h < 12:
+                    greet = "👋 Good Morning"
+                elif h < 17:
+                    greet = "☀️ Good Afternoon"
+                elif h < 21:
+                    greet = "🌅 Good Evening"
+                else:
+                    greet = "🌙 Good Night"
             else:
-                greet = "Good Night"
+                if h < 6:
+                    greet = "Good Night"
+                elif h < 12:
+                    greet = "Good Morning"
+                elif h < 17:
+                    greet = "Good Afternoon"
+                elif h < 21:
+                    greet = "Good Evening"
+                else:
+                    greet = "Good Night"
             self.greeting_label.setText(greet)
             today = QDate.currentDate()
             self.sub_label.setText(today.toString("dddd, MMMM d").upper())
-        self.time_label.setText(now.toString("h:mm AP"))
+        time_fmt = st.get("time_fmt", "h:mm AP")
+        self.time_label.setText(now.toString(time_fmt))
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -833,13 +976,17 @@ class WorldClockWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(280, 170)
+        st = self._get_style()
+        self.title.setText(st.get("title", "W O R L D   C L O C K"))
 
     def _update(self):
+        st = self._get_style()
         from datetime import datetime as dt, timezone, timedelta
         utc_now = dt.now(timezone.utc)
+        time_fmt = st.get("time_fmt", "%H:%M")
         for i, tz in enumerate(self._offsets):
             t = utc_now + timedelta(hours=tz["offset"])
-            self._time_labels[i].setText(t.strftime("%H:%M"))
+            self._time_labels[i].setText(t.strftime(time_fmt))
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -872,6 +1019,10 @@ class DayProgressWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(270, 170)
+        st = self._get_style()
+        self.title.setText(st.get("title", "D A Y   P R O G R E S S"))
+        self.bar.setVisible(st.get("show_bar", True))
+        self.detail_label.setVisible(st.get("show_remaining", True))
 
     def _update(self):
         now = QTime.currentTime()
@@ -1006,6 +1157,12 @@ class SpotifyWidget(BaseWidget):
 
     def _resize_for_scale(self):
         self._set_adaptive_size(340, 150)
+        st = self._get_style()
+        self.art_label.setVisible(st.get("show_art", True))
+        show_controls = st.get("show_controls", True)
+        self.prev_btn.setVisible(show_controls)
+        self.play_btn.setVisible(show_controls)
+        self.next_btn.setVisible(show_controls)
 
     def _default_art(self):
         """Show a music note placeholder when no art is available."""

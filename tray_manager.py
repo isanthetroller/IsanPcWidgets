@@ -6,7 +6,7 @@ from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
 from PySide6.QtCore import Qt
 from themes import THEMES
 from config import FONTS
-from pickers import ThemePickerDialog, FontPickerDialog, TemplatePickerDialog, ColorPickerDialog, DATETIME_TEMPLATES
+from pickers import ThemePickerDialog, FontPickerDialog, TemplatePickerDialog, ColorPickerDialog, DATETIME_TEMPLATES, WIDGET_STYLES, WidgetStylePickerDialog
 
 
 def _create_icon():
@@ -196,6 +196,25 @@ class TrayManager:
         tmpl_action = self.menu.addAction(f"🕐  DateTime Style: {tmpl_name}")
         tmpl_action.triggered.connect(self._open_template_picker)
 
+        # ── Per-widget style pickers ──
+        style_menu = self.menu.addMenu("✨  Widget Styles")
+        style_menu.setStyleSheet(MENU_STYLE)
+        STYLE_ICONS = {
+            "clock": "🕐", "system": "💻", "stopwatch": "⏱",
+            "quotes": "💬", "calendar": "📅", "countdown": "⏳",
+            "battery": "🔋", "uptime": "⬆", "network": "🌐",
+            "notes": "📝", "greeting": "👋", "worldclock": "🌍",
+            "dayprogress": "📊", "spotify": "🎵",
+        }
+        for wid in WIDGET_STYLES:
+            styles = WIDGET_STYLES[wid]
+            current_sid = self.config.get("widgets", {}).get(wid, {}).get("style", next(iter(styles)))
+            style_name = styles.get(current_sid, {}).get("name", current_sid)
+            nice_wid = wid.replace("dayprogress", "Day Progress").replace("worldclock", "World Clock").capitalize()
+            icon = STYLE_ICONS.get(wid, "🎨")
+            action = style_menu.addAction(f"{icon}  {nice_wid}: {style_name}")
+            action.triggered.connect(self._make_style_opener(wid))
+
         self.menu.addSeparator()
 
         # ── Background toggle ──
@@ -331,6 +350,32 @@ class TrayManager:
             w._update()
         self.save_fn()
         self._build_menu()
+
+    def _make_style_opener(self, widget_id):
+        def opener():
+            styles = WIDGET_STYLES.get(widget_id, {})
+            current = self.config.get("widgets", {}).get(widget_id, {}).get("style", next(iter(styles)))
+            theme_id = self.config.get("theme", "emerald")
+            theme_colors = THEMES.get(theme_id, THEMES["emerald"])
+            dlg = WidgetStylePickerDialog(widget_id, current, theme_colors)
+            dlg.style_selected.connect(self._make_style_applier(widget_id))
+            dlg.exec()
+        return opener
+
+    def _make_style_applier(self, widget_id):
+        def applier(style_id):
+            self.config.setdefault("widgets", {}).setdefault(widget_id, {})
+            self.config["widgets"][widget_id]["style"] = style_id
+            w = self.widgets.get(widget_id)
+            if w:
+                w.apply_theme()
+                if hasattr(w, "_update"):
+                    w._update()
+                if hasattr(w, "_build_calendar"):
+                    w._build_calendar()
+            self.save_fn()
+            self._build_menu()
+        return applier
 
     def _toggle_autostart(self):
         from config import set_auto_start
