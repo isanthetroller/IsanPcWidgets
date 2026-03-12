@@ -7,6 +7,7 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 
 from config import load_config, save_config
 from widgets import WIDGET_CLASSES
@@ -24,6 +25,12 @@ def main():
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+
+    # Enable smooth font rendering globally
+    font = app.font()
+    font.setHintingPreference(QFont.PreferNoHinting)
+    font.setStyleStrategy(QFont.PreferAntialias)
+    app.setFont(font)
 
     config = load_config()
 

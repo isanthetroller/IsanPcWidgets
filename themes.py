@@ -197,6 +197,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
     sp = lambda base: max(0, int(base * scale))   # spacing (no floor)
 
     return f"""
+        /* ── Global base ── */
         QWidget#widgetBg {{
             background-color: {t['bg']};
             border: 1px solid {t['border']};
@@ -208,151 +209,185 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             background: transparent;
             border: none;
         }}
-        QLabel#bird_icon {{
-            font-size: {s(28)}px;
-            background: transparent;
-            border: none;
-        }}
-        QLabel#day {{
-            font-size: {s(38)}px;
-            font-weight: bold;
-            color: {t['fg']};
-        }}
-        QLabel#date {{
-            font-size: {s(16)}px;
-            color: {t['dim']};
-        }}
-        QLabel#time {{
-            font-size: {s(18)}px;
-            color: {t['accent']};
-        }}
-        QLabel#clock_big {{
-            font-size: {s(56)}px;
-            font-weight: bold;
-            letter-spacing: {sp(3)}px;
-            padding-right: {sp(3)}px;
-            color: {t['fg']};
-        }}
-        QLabel#clock_sec {{
-            font-size: {s(20)}px;
-            color: {t['accent']};
-            letter-spacing: {sp(2)}px;
-            padding-right: {sp(2)}px;
-        }}
-        QLabel#title {{
-            font-size: {s(13)}px;
-            color: {t['accent']};
-            font-weight: bold;
-            letter-spacing: {sp(2)}px;
-            padding-right: {sp(2)}px;
-        }}
-        QLabel#big {{
-            font-size: {s(32)}px;
-            font-weight: bold;
-            color: {t['fg']};
-        }}
-        QLabel#medium {{
-            font-size: {s(16)}px;
-            color: {t['fg']};
-        }}
-        QLabel#dim {{
-            font-size: {s(14)}px;
-            color: {t['dim']};
-        }}
-        QLabel#accent {{
-            font-size: {s(16)}px;
-            color: {t['accent']};
-        }}
-        QLabel#accent_big {{
-            font-size: {s(48)}px;
-            font-weight: bold;
-            color: {t['accent']};
-        }}
-        QLabel#stopwatch_display {{
-            font-size: {s(42)}px;
-            font-weight: bold;
-            letter-spacing: {sp(3)}px;
-            padding-right: {sp(3)}px;
-            color: {t['fg']};
-        }}
-        QLabel#stopwatch_ms {{
-            font-size: {s(18)}px;
-            color: {t['accent']};
-        }}
-        QLabel#quote_text {{
-            font-size: {s(16)}px;
-            font-style: italic;
-            color: {t['fg']};
-        }}
-        QLabel#quote_author {{
-            font-size: {s(13)}px;
-            color: {t['dim']};
-        }}
         QLabel#divider {{
             background-color: {t.get('divider', t['dim'])};
             max-height: 1px;
             min-height: 1px;
-        }}
-        QLabel#net_up {{
-            font-size: {s(15)}px;
-            color: {t['accent']};
-        }}
-        QLabel#net_down {{
-            font-size: {s(15)}px;
-            color: {t['fg']};
         }}
         QTextEdit {{
             color: {t['fg']};
             background: transparent;
             border: none;
             font-family: "{font_family}";
-            font-size: {s(14)}px;
+            font-size: {s(15)}px;
         }}
         QProgressBar {{
             background-color: rgba(128, 128, 128, 40);
             border: none;
             border-radius: {s(3)}px;
-            max-height: {s(5)}px;
+            max-height: {s(6)}px;
         }}
         QProgressBar::chunk {{
             background-color: {t['accent']};
             border-radius: {s(3)}px;
         }}
+
+        /* ── Shared label roles ── */
+        QLabel#title {{
+            font-size: {s(14)}px;
+            color: {t['accent']};
+            font-weight: bold;
+            letter-spacing: {sp(3)}px;
+            padding-right: {sp(3)}px;
+            text-transform: uppercase;
+        }}
+        QLabel#big {{
+            font-size: {s(36)}px;
+            font-weight: bold;
+            color: {t['fg']};
+        }}
+        QLabel#medium {{
+            font-size: {s(17)}px;
+            color: {t['fg']};
+        }}
+        QLabel#dim {{
+            font-size: {s(15)}px;
+            color: {t['dim']};
+        }}
+        QLabel#accent {{
+            font-size: {s(17)}px;
+            color: {t['accent']};
+        }}
+        QLabel#accent_big {{
+            font-size: {s(52)}px;
+            font-weight: bold;
+            color: {t['accent']};
+        }}
+
+        /* ── DateTime Widget ── */
+        QLabel#bird_icon {{
+            font-size: {s(30)}px;
+            background: transparent;
+            border: none;
+        }}
+        QLabel#day {{
+            font-size: {s(42)}px;
+            font-weight: bold;
+            color: {t['fg']};
+        }}
+        QLabel#date {{
+            font-size: {s(18)}px;
+            color: {t['dim']};
+        }}
+        QLabel#time {{
+            font-size: {s(20)}px;
+            color: {t['accent']};
+        }}
+
+        /* ── Clock Widget ── */
+        QLabel#clock_big {{
+            font-size: {s(60)}px;
+            font-weight: bold;
+            letter-spacing: {sp(4)}px;
+            padding-right: {sp(4)}px;
+            color: {t['fg']};
+        }}
+        QLabel#clock_sec {{
+            font-size: {s(22)}px;
+            color: {t['accent']};
+            letter-spacing: {sp(2)}px;
+            padding-right: {sp(2)}px;
+        }}
+
+        /* ── System Widget ── */
+
+        /* ── Stopwatch Widget ── */
+        QLabel#stopwatch_display {{
+            font-size: {s(46)}px;
+            font-weight: bold;
+            letter-spacing: {sp(3)}px;
+            padding-right: {sp(3)}px;
+            color: {t['fg']};
+        }}
+        QLabel#stopwatch_ms {{
+            font-size: {s(20)}px;
+            color: {t['accent']};
+        }}
         QPushButton#sw_btn {{
-            font-size: {s(13)}px;
+            font-size: {s(14)}px;
             font-family: "{font_family}";
             color: {t['fg']};
             background-color: rgba(128,128,128,40);
             border: 1px solid {t['border']};
-            border-radius: {s(4)}px;
-            padding: {s(3)}px {s(10)}px;
+            border-radius: {s(5)}px;
+            padding: {s(4)}px {s(12)}px;
         }}
         QPushButton#sw_btn:hover {{
             background-color: rgba(128,128,128,80);
         }}
-        QLabel#spotify_title {{
+
+        /* ── Quotes Widget ── */
+        QLabel#quote_text {{
+            font-size: {s(17)}px;
+            font-style: italic;
+            color: {t['fg']};
+            line-height: 1.4;
+        }}
+        QLabel#quote_author {{
+            font-size: {s(14)}px;
+            color: {t['dim']};
+        }}
+
+        /* ── Calendar Widget ── */
+
+        /* ── Countdown Widget ── */
+
+        /* ── Battery Widget ── */
+
+        /* ── Uptime Widget ── */
+
+        /* ── Network Widget ── */
+        QLabel#net_up {{
             font-size: {s(16)}px;
+            color: {t['accent']};
+        }}
+        QLabel#net_down {{
+            font-size: {s(16)}px;
+            color: {t['fg']};
+        }}
+
+        /* ── Notes Widget ── */
+
+        /* ── Greeting Widget ── */
+
+        /* ── World Clock Widget ── */
+
+        /* ── Day Progress Widget ── */
+
+        /* ── Spotify Widget ── */
+        QLabel#spotify_title {{
+            font-size: {s(17)}px;
             font-weight: bold;
             color: {t['fg']};
         }}
         QLabel#spotify_artist {{
-            font-size: {s(14)}px;
+            font-size: {s(15)}px;
             color: {t['dim']};
         }}
         QLabel#spotify_art {{
             border-radius: {s(8)}px;
         }}
         QPushButton#media_btn {{
-            font-size: {s(18)}px;
+            font-size: {s(20)}px;
             font-family: "{font_family}";
             color: {t['fg']};
             background-color: rgba(128,128,128,40);
             border: 1px solid {t['border']};
-            border-radius: {s(16)}px;
-            min-width: {s(36)}px;
-            min-height: {s(36)}px;
-            max-width: {s(36)}px;
-            max-height: {s(36)}px;
+            border-radius: {s(18)}px;
+            min-width: {s(38)}px;
+            min-height: {s(38)}px;
+            max-width: {s(38)}px;
+            max-height: {s(38)}px;
         }}
         QPushButton#media_btn:hover {{
             background-color: rgba(128,128,128,80);
