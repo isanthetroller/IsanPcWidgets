@@ -97,6 +97,7 @@ class BaseWidget(QWidget):
         self.content_layout.setContentsMargins(24, 18, 24, 18)
         self.content_layout.setSpacing(2)
 
+        self._widget_ready = False
         self.apply_theme()
         self._restore_position()
 
@@ -112,7 +113,8 @@ class BaseWidget(QWidget):
         # Apply per-widget opacity
         opacity = self.config.get("widgets", {}).get(self.widget_id, {}).get("opacity", 1.0)
         self.setWindowOpacity(max(0.1, min(1.0, opacity)))
-        self._resize_for_scale()
+        if self._widget_ready:
+            self._resize_for_scale()
 
     def _resize_for_scale(self):
         pass
@@ -195,6 +197,8 @@ class DateTimeWidget(BaseWidget):
         self.content_layout.addWidget(self.date_label)
         self.content_layout.addWidget(self.time_label)
         self._cached_minute = -1
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -264,6 +268,8 @@ class ClockWidget(BaseWidget):
         self.sec_label.setAlignment(Qt.AlignCenter)
         self.content_layout.addWidget(self.time_label)
         self.content_layout.addWidget(self.sec_label)
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -324,6 +330,8 @@ class SystemWidget(BaseWidget):
         self._prev = {"cpu": None, "ram": None, "disk": None}
         self._disk_tick = 0
         psutil.cpu_percent(interval=0)
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -404,6 +412,8 @@ class StopwatchWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
         self.timer.setInterval(50)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(280, 180)
@@ -466,6 +476,8 @@ class QuotesWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._show_quote)
         self.timer.start(60000)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(360, 180)
@@ -507,6 +519,8 @@ class CalendarWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._check_day_change)
         self.timer.start(60000)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(320, 260)
@@ -578,6 +592,8 @@ class CountdownWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
         self.timer.start(60000)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(280, 160)
@@ -630,6 +646,8 @@ class BatteryWidget(BaseWidget):
         self.content_layout.addWidget(self.bar)
         self.content_layout.addWidget(self.status_label)
         self._prev_pct = None
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -687,6 +705,8 @@ class UptimeWidget(BaseWidget):
         self.content_layout.addWidget(self.detail_label)
         self._boot = psutil.boot_time()
         self._prev_min = -1
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -760,6 +780,8 @@ class NetworkWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
         self.timer.start(2000)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(240, 175)
@@ -825,6 +847,8 @@ class NotesWidget(BaseWidget):
         self._save_timer.setSingleShot(True)
         self._save_timer.timeout.connect(self._do_save)
         self.text_edit.textChanged.connect(self._on_text_changed)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(300, 260)
@@ -871,6 +895,8 @@ class GreetingWidget(BaseWidget):
         self.content_layout.addWidget(self.sub_label)
         self.content_layout.addWidget(self.time_label)
         self._cached_hour = -1
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -973,6 +999,8 @@ class WorldClockWidget(BaseWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
         self.timer.start(30000)
+        self._widget_ready = True
+        self._resize_for_scale()
 
     def _resize_for_scale(self):
         self._set_adaptive_size(280, 170)
@@ -1012,6 +1040,8 @@ class DayProgressWidget(BaseWidget):
         self.content_layout.addWidget(self.pct_label)
         self.content_layout.addWidget(self.bar)
         self.content_layout.addWidget(self.detail_label)
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
@@ -1150,6 +1180,8 @@ class SpotifyWidget(BaseWidget):
 
         self._last_title = None
         self._is_playing = False
+        self._widget_ready = True
+        self._resize_for_scale()
         self._update()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update)
