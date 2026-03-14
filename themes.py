@@ -1,7 +1,7 @@
 THEMES = {
     "emerald": {
         "name": "Emerald",
-        "bg": "rgba(0, 105, 62, 235)",
+        "bg": "rgba(0, 105, 62, 160)",
         "fg": "#FFFFFF",
         "accent": "#A8F0D0",
         "dim": "rgba(255,255,255,120)",
@@ -10,7 +10,7 @@ THEMES = {
     },
     "midnight": {
         "name": "Midnight",
-        "bg": "rgba(12, 12, 40, 240)",
+        "bg": "rgba(12, 12, 40, 180)",
         "fg": "#E0E0FF",
         "accent": "#7B68EE",
         "dim": "rgba(200,200,255,100)",
@@ -19,7 +19,7 @@ THEMES = {
     },
     "neon": {
         "name": "Neon Cyber",
-        "bg": "rgba(10, 10, 15, 240)",
+        "bg": "rgba(10, 10, 15, 180)",
         "fg": "#00FFCC",
         "accent": "#FF00FF",
         "dim": "rgba(0,255,200,80)",
@@ -28,7 +28,7 @@ THEMES = {
     },
     "sunset": {
         "name": "Sunset",
-        "bg": "rgba(60, 20, 40, 235)",
+        "bg": "rgba(60, 20, 40, 180)",
         "fg": "#FFD4A8",
         "accent": "#FF6B35",
         "dim": "rgba(255,180,130,100)",
@@ -55,12 +55,12 @@ THEMES = {
     },
     "void": {
         "name": "Void",
-        "bg": "rgba(0, 0, 0, 245)",
+        "bg": "rgba(0, 0, 0, 150)",
         "fg": "#FFFFFF",
         "accent": "#FFFFFF",
         "dim": "rgba(255,255,255,80)",
         "border": "rgba(255, 255, 255, 20)",
-        "divider": "rgba(255, 255, 255, 30)",
+        "divider": "rgba(255, 255, 255, 20)",
     },
     "ocean": {
         "name": "Deep Ocean",
@@ -82,12 +82,12 @@ THEMES = {
     },
     "glass": {
         "name": "Glass",
-        "bg": "rgba(255, 255, 255, 30)",
+        "bg": "rgba(255, 255, 255, 20)",
         "fg": "#FFFFFF",
         "accent": "#FFFFFF",
         "dim": "rgba(255,255,255,60)",
         "border": "rgba(255, 255, 255, 40)",
-        "divider": "rgba(255, 255, 255, 30)",
+        "divider": "rgba(255, 255, 255, 20)",
     },
     "blood": {
         "name": "Blood Moon",
@@ -201,7 +201,8 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         QWidget#widgetBg {{
             background-color: {t['bg']};
             border: 1px solid {t['border']};
-            border-radius: {int(14 * scale)}px;
+            background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {t['bg']}, stop:1 rgba(0,0,0,80));
+            border-radius: {int(20 * scale)}px;
         }}
         QLabel {{
             color: {t['fg']};
@@ -271,16 +272,21 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             border: none;
         }}
         QLabel#day {{
-            font-size: {s(42)}px;
-            font-weight: bold;
+            font-size: {s(48)}px;
+            font-weight: 800; /* Extra bold */
+            letter-spacing: {sp(2)}px;
             color: {t['fg']};
         }}
         QLabel#date {{
-            font-size: {s(18)}px;
+            font-size: {s(16)}px;
+            font-weight: 300; /* Light */
+            letter-spacing: {sp(4)}px;
+            text-transform: uppercase;
             color: {t['dim']};
         }}
         QLabel#time {{
-            font-size: {s(20)}px;
+            font-size: {s(24)}px;
+            font-weight: 600;
             color: {t['accent']};
         }}
 
@@ -294,6 +300,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
         }}
         QLabel#clock_sec {{
             font-size: {s(22)}px;
+            font-weight: 300;
             color: {t['accent']};
             letter-spacing: {sp(2)}px;
             padding-right: {sp(2)}px;
@@ -310,7 +317,8 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             color: {t['fg']};
         }}
         QLabel#stopwatch_ms {{
-            font-size: {s(20)}px;
+            font-size: {s(24)}px;
+            font-weight: 600;
             color: {t['accent']};
         }}
         QPushButton#sw_btn {{
@@ -319,6 +327,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             color: {t['fg']};
             background-color: rgba(128,128,128,40);
             border: 1px solid {t['border']};
+            background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {t['bg']}, stop:1 rgba(0,0,0,80));
             border-radius: {s(5)}px;
             padding: {s(4)}px {s(12)}px;
         }}
@@ -383,6 +392,7 @@ def build_stylesheet(theme_name, font_family, scale=1.0, no_bg=False, custom_col
             color: {t['fg']};
             background-color: rgba(128,128,128,40);
             border: 1px solid {t['border']};
+            background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {t['bg']}, stop:1 rgba(0,0,0,80));
             border-radius: {s(18)}px;
             min-width: {s(38)}px;
             min-height: {s(38)}px;

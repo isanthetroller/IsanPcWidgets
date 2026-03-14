@@ -6,7 +6,7 @@ import psutil
 from datetime import datetime, date
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QProgressBar, QGridLayout, QPushButton, QSizePolicy,
+    QProgressBar, QGridLayout, QPushButton, QSizePolicy, QGraphicsDropShadowEffect,
 )
 from PySide6.QtCore import Qt, QTimer, QTime, QDate
 from PySide6.QtGui import (
@@ -89,12 +89,19 @@ class BaseWidget(QWidget):
         self.bg = QWidget(self)
         self.bg.setObjectName("widgetBg")
 
+        # Rainmeter-style drop shadow
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(25)
+        shadow.setColor(QColor(0, 0, 0, 150))
+        shadow.setOffset(0, 5)
+        self.bg.setGraphicsEffect(shadow)
+
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.bg)
 
         self.content_layout = QVBoxLayout(self.bg)
-        self.content_layout.setContentsMargins(24, 18, 24, 18)
+        self.content_layout.setContentsMargins(35, 25, 35, 25)
         self.content_layout.setSpacing(2)
 
         self._widget_ready = False
@@ -233,6 +240,20 @@ class DateTimeWidget(BaseWidget):
         m = now.minute()
         if m != self._cached_minute:
             self._cached_minute = m
+
+            # Re-order widgets dynamically to create completely different vibes
+            for i in reversed(range(self.content_layout.count())): 
+                self.content_layout.itemAt(i).widget().setParent(None)
+            
+            if t.get("layout") == "time_top":
+                self.content_layout.addWidget(self.time_label)
+                self.content_layout.addWidget(self.day_label)
+                self.content_layout.addWidget(self.date_label)
+            else:
+                self.content_layout.addWidget(self.day_label)
+                self.content_layout.addWidget(self.date_label)
+                self.content_layout.addWidget(self.time_label)
+
             # Day string
             day_text = today.toString(t["day_fmt"]) if t["day_fmt"] else ""
             tr = t["day_transform"]
@@ -307,26 +328,43 @@ class SystemWidget(BaseWidget):
         self.title = QLabel("S Y S T E M")
         self.title.setObjectName("title")
         self.title.setAlignment(Qt.AlignCenter)
+        
+        # CPU
         self.cpu_label = QLabel()
-        self.cpu_label.setObjectName("medium")
+        self.cpu_label.setObjectName("accent")
         self.cpu_bar = QProgressBar()
         self.cpu_bar.setTextVisible(False)
         self.cpu_bar.setRange(0, 100)
+        self.cpu_bar.setFixedHeight(8)
+        
+        # RAM
         self.ram_label = QLabel()
         self.ram_label.setObjectName("medium")
         self.ram_bar = QProgressBar()
         self.ram_bar.setTextVisible(False)
         self.ram_bar.setRange(0, 100)
+        self.ram_bar.setFixedHeight(8)
+
+        # DISK
         self.disk_label = QLabel()
         self.disk_label.setObjectName("dim")
         self.disk_bar = QProgressBar()
         self.disk_bar.setTextVisible(False)
         self.disk_bar.setRange(0, 100)
+        self.disk_bar.setFixedHeight(4)
+        
         self.content_layout.addWidget(self.title)
-        self.content_layout.setSpacing(4)
+        self.content_layout.setSpacing(6)
+        
+        # Layout them nicely in pairs
         for lbl, bar in [(self.cpu_label, self.cpu_bar), (self.ram_label, self.ram_bar), (self.disk_label, self.disk_bar)]:
-            self.content_layout.addWidget(lbl)
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.addWidget(lbl)
+            self.content_layout.addWidget(row)
             self.content_layout.addWidget(bar)
+            
         self._prev = {"cpu": None, "ram": None, "disk": None}
         self._disk_tick = 0
         psutil.cpu_percent(interval=0)
